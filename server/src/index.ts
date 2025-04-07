@@ -3,15 +3,26 @@ import { WebSocketServer } from "ws";
 import { ASR } from "./asr";
 import { Wake } from "./wake";
 import { Option, program } from "commander";
+import { LLM } from "./llm";
 
 program
+	// wake word/trigger options
 	.addOption(new Option("--wake <method>", "method for waking up the voice assistant").default("manual").choices(["manual", "openwakeword"]))
-	.option("--wakeword <model>", "model for wake word in tflite or onnx format", "./wakewords/summatia.tflite")
+	.option("--wakeword <model>", "(only for --wake openwakeword) model for wake word in tflite or onnx format", "./wakewords/summatia.tflite")
+	// asr options
 	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(["whisper", "picovoice"]))
-	.option("--python <path>", "path to a Python virtual environment (venv) with all dependencies from requirements.txt installed")
-	.option("--port <number>", "port number for the Websocket server", "3280")
-	.option("--picovoice <key>", "access key of Picovoice, used if `asr` is set to `picovoice`")
-	.option("--whisper-model <model>", "model size for (faster) whisper", "base")
+	.option("--picovoice <key>", "(only for --asr picovoice) access key for picovoice")
+	.option("--whisper-model <model>", "(only for --asr whisper) model size for (faster) whisper", "base")
+	// llm options
+	.addOption(new Option("--llm <method>", "method for function calling and response").default("deepseek").choices(["deepseek", "ollama"]))
+	.option("--memory-length <number>", "amount of messages to store as context", "20")
+	.option("--memory-duration <number>", "amount of time (in seconds) to store the context", "60")
+	.option("--deepseek <key>", "(only for --llm deepseek) api key for deepseek")
+	.option("--ollama-host <url>", "(only for --llm ollama) host url of local ollama", "http://localhost:11434")
+	.option("--ollama-model <model>", "(only for --llm ollama) ollama model to use")
+	// misc/common options
+	.option("--python <path>", "path to a python virtual environment (venv) with all dependencies from requirements.txt installed")
+	.option("--port <number>", "port number for the websocket server", "3280")
 	.addOption(new Option("-d, --force-device <name>", "force-use this device for running models locally").choices(["cuda", "cpu"]));
 
 program.parse();
@@ -62,9 +73,22 @@ server.on("connection", socket => {
 		asr = new PicovoiceASR();
 	}
 	asr.on("result", result => {
+		llm.process(result);
+	});
+
+	let llm: LLM;
+	if (options.llm == "ollama") {
+		const { OllamaLLM } = await import("./llm/ollama");
+		llm = new OllamaLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.ollamaHost, options.ollamaModel);
+	} else {
+		const { DeepseekLLM } = await import("./llm/deepseek");
+		llm = new DeepseekLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration));
+	}
+	llm.on("result", result => {
 		console.log(result);
 		wake.unlock();
 	});
+
 
 	process.on("SIGINT", () => {
 		console.log("Interupted. Shutting down...");
