@@ -12,6 +12,8 @@ export abstract class ASR extends EventEmitter {
 	abstract start(): void;
 	abstract stop(): void;
 
+	abstract interrupt(): void;
+
 	attachWebsocket(websocket: WebSocket) {
 		this.websocket = websocket;
 	}

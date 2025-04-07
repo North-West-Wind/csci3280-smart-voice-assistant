@@ -1,22 +1,27 @@
 from collections.abc import Callable
-import fileinput
+import sys
 from threading import Thread
 
 class InputMan:
 	def __init__(self):
 		self._running = True
 		self._listeners = list()
-		Thread(target=self.listen).start()
+		Thread(target=self.listen, daemon=True).start()
 
 	def listen(self):
 		while self._running:
-			for line in fileinput.input():
-				match line:
-					case "exit":
-						self._running = False
-					case _:
-						for listener in self._listeners:
-							Thread(target=listener, args=(line,)).start()
+			try:
+				for line in sys.stdin:
+					match line:
+						case "exit":
+							self._running = False
+						case _:
+							for listener in self._listeners:
+								Thread(target=listener, args=(line.rstrip("\n"),), daemon=True).start()
+			except KeyboardInterrupt:
+				self._running = False
+			except:
+				pass
 
 	def add_listener(self, listener: Callable[[str], None]):
 		self._listeners.append(listener)

@@ -8,4 +8,6 @@ export declare interface Wake {
 export abstract class Wake extends EventEmitter {
 	abstract lock(): void;
 	abstract unlock(): void;
+
+	abstract interrupt(): void;
 }

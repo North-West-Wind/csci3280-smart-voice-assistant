@@ -18,4 +18,8 @@ export class ManualWake extends Wake {
 	unlock() {
 		this.server.clients.forEach(socket => socket.send("unlock"));
 	}
+
+	interrupt() {
+		
+	}
 }

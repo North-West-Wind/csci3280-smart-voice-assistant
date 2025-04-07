@@ -1,15 +1,18 @@
 import "dotenv/config";
-import { WebSocket, WebSocketServer } from "ws";
+import { WebSocketServer } from "ws";
 import { ASR } from "./asr";
 import { Wake } from "./wake";
 import { Option, program } from "commander";
 
 program
 	.addOption(new Option("--wake <method>", "method for waking up the voice assistant").default("manual").choices(["manual", "openwakeword"]))
+	.option("--wakeword <model>", "model for wake word in tflite or onnx format", "./wakewords/summatia.tflite")
 	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(["whisper", "picovoice"]))
 	.option("--python <path>", "path to a Python virtual environment (venv) with all dependencies from requirements.txt installed")
 	.option("--port <number>", "port number for the Websocket server", "3280")
-	.option("--picovoice <key>", "access key of Picovoice, used if `asr` is set to `picovoice`");
+	.option("--picovoice <key>", "access key of Picovoice, used if `asr` is set to `picovoice`")
+	.option("--whisper-model <model>", "model size for (faster) whisper", "base")
+	.addOption(new Option("-d, --force-device <name>", "force-use this device for running models locally").choices(["cuda", "cpu"]));
 
 program.parse();
 
@@ -40,7 +43,7 @@ server.on("connection", socket => {
 	let wake: Wake;
 	if (options.wake == "openwakeword") {
 		const { OpenWakeWord } = await import("./wake/oww");
-		wake = new OpenWakeWord(options.python);
+		wake = new OpenWakeWord(options.wakeword, options.python);
 	} else {
 		const { ManualWake } = await import("./wake/manual");
 		wake = new ManualWake(server);
@@ -52,8 +55,8 @@ server.on("connection", socket => {
 	
 	let asr: ASR;
 	if (options.asr == "whisper") {
-		const { WhisperASR } = await import("./asr/whisper");
-		asr = new WhisperASR("./python/.venv/bin/python");
+		const { LocalASR } = await import("./asr/local");
+		asr = new LocalASR(options.whisperModel, options.forceDevice, options.python);
 	} else {
 		const { PicovoiceASR } = await import("./asr/picovoice");
 		asr = new PicovoiceASR();
@@ -61,6 +64,14 @@ server.on("connection", socket => {
 	asr.on("result", result => {
 		console.log(result);
 		wake.unlock();
+	});
+
+	process.on("SIGINT", () => {
+		console.log("Interupted. Shutting down...");
+		wake.interrupt();
+		asr.interrupt();
+		console.log("Done!");
+		process.exit(0);
 	});
 })();
 

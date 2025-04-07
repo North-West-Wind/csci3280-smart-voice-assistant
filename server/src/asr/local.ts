@@ -1,12 +1,12 @@
 import { PythonShell } from "python-shell";
 import { ASR } from "../asr";
 
-export class WhisperASR extends ASR {
+export class LocalASR extends ASR {
 	private ready: boolean;
 	private running: boolean;
 	private shell?: PythonShell;
 
-	constructor(pythonPath: string) {
+	constructor(model: string, device?: string, pythonPath?: string) {
 		super();
 		this.ready = false;
 		this.running = false;
@@ -15,7 +15,7 @@ export class WhisperASR extends ASR {
 			const version = output[0].split(" ")[1].split(".").map(s => parseInt(s));
 			if (version[0] != 3 || version[1] > 10) throw new Error("Invalid Python version. It must be Python 3 but <= 3.10"); 
 
-			this.shell = new PythonShell("./python/stt.py", { pythonPath, mode: "text", pythonOptions: ["-u"] });
+			this.shell = new PythonShell("./python/stt.py", { pythonPath, mode: "text", pythonOptions: ["-u"], args: [model].concat(device ? [device] : []) });
 			this.shell.on("message", (message: string) => {
 				const arr = message.split(" ");
 				const type = arr.shift();
@@ -24,9 +24,8 @@ export class WhisperASR extends ASR {
 						if (this.running)	this.emit("result", arr.join(" "));
 						break;
 					default:
-						console.log(message);
+						console.log("stt: " + message);
 				}
-				console.log("FasterWhisperASR: " + message);
 			}).on("pythonError", err => {
 				this.ready = false;
 				throw err;
@@ -39,12 +38,17 @@ export class WhisperASR extends ASR {
 	}
 
 	start() {
-		if (!this.ready) throw new Error("WhisperASR is not ready yet");
+		if (!this.ready) throw new Error("LocalASR is not ready yet");
 		this.running = true;
 		this.shell?.send("start");
 	}
 
 	stop() {
 		this.running = false;
+	}
+
+	interrupt() {
+		this.stop();
+		this.shell?.kill("SIGINT");
 	}
 }

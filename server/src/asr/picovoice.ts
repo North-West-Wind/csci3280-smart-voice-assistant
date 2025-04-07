@@ -57,4 +57,8 @@ export class PicovoiceASR extends ASR {
 	list() {
 		return PvRecorder.getAvailableDevices();
 	}
+
+	interrupt() {
+		this.stop();
+	}
 }

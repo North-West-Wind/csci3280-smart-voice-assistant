@@ -5,7 +5,7 @@ export class OpenWakeWord extends Wake {
 	private ready: boolean;
 	private shell?: PythonShell;
 
-	constructor(pythonPath?: string) {
+	constructor(model: string, pythonPath?: string) {
 		super();
 		this.ready = false;
 		PythonShell.runString("", { pythonPath, pythonOptions: ["--version"] }).then(output => {
@@ -13,8 +13,8 @@ export class OpenWakeWord extends Wake {
 			const version = output[0].split(" ")[1].split(".").map(s => parseInt(s));
 			if (version[0] != 3 || version[1] > 10) throw new Error("Invalid Python version. It must be Python 3 but <= 3.10"); 
 
-			const shell = new PythonShell("./python/wake.py", { pythonPath, mode: "text", pythonOptions: ["-u"] });
-			shell.on("message", (message: string) => {
+			this.shell = new PythonShell("./python/wake.py", { pythonPath, mode: "text", pythonOptions: ["-u"], args: [model] });
+			this.shell.on("message", (message: string) => {
 				const arr = message.split(" ");
 				const type = arr.shift();
 				switch (type) {
@@ -22,14 +22,13 @@ export class OpenWakeWord extends Wake {
 						this.emit("wake", arr.join(" "));
 						break;
 					default:
-						console.log(message);
+						console.log("oww: " + message);
 				}
-				console.log("stt: " + message);
 			}).on("pythonError", err => {
 				this.ready = false;
 				throw err;
 			}).on("stderr", err => {
-				console.error("stt: " + err);
+				console.error("oww: " + err);
 			});
 
 			this.ready = true;
@@ -43,5 +42,9 @@ export class OpenWakeWord extends Wake {
 
 	unlock() {
 		this.shell?.send("unlock");
+	}
+
+	interrupt() {
+		this.shell?.kill("SIGINT");
 	}
 }
