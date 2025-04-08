@@ -90,7 +90,7 @@ server.on("connection", socket => {
 	let llm: LLM;
 	if (options.llm == "ollama") {
 		const { OllamaLLM } = await import("./llm/ollama");
-		llm = new OllamaLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.ollamaHost, options.ollamaModel);
+		llm = new OllamaLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.ollamaHost, options.ollamaModel, options.systemPromptFile);
 	} else {
 		const { DeepseekLLM } = await import("./llm/deepseek");
 		llm = new DeepseekLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile);

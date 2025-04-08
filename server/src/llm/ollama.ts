@@ -6,8 +6,8 @@ export class OllamaLLM extends LLM {
 	private ollama: Ollama;
 	private model: string;
 
-	constructor(memory: number, duration: number, ollamaHost: string, model: string) {
-		super(memory, duration);
+	constructor(memory: number, duration: number, systemPromptFile: string, ollamaHost: string, model: string) {
+		super(memory, duration, systemPromptFile);
 		this.ready = false;
 		this.ollama = new Ollama({ host: ollamaHost });
 		this.model = model;
