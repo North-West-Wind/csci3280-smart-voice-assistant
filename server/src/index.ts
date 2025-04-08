@@ -60,10 +60,10 @@ server.on("connection", socket => {
 	// Setup wake word detection/manual trigger 
 	let wake: Wake;
 	if (options.wake == "openwakeword") {
-		const { OpenWakeWord } = await import("./wake/oww");
+		const { OpenWakeWord } = await import("./wake/oww.js");
 		wake = new OpenWakeWord(options.wakeword, options.python);
 	} else {
-		const { ManualWake } = await import("./wake/manual");
+		const { ManualWake } = await import("./wake/manual.js");
 		wake = new ManualWake(server);
 	}
 	// If the assistant is triggered, disable wake and start transcribing
@@ -75,32 +75,35 @@ server.on("connection", socket => {
 	// Setup automatic speech recognition
 	let asr: ASR;
 	if (options.asr == "whisper") {
-		const { LocalASR } = await import("./asr/local");
+		const { LocalASR } = await import("./asr/local.js");
 		asr = new LocalASR(options.whisperModel, options.fasterWhisper, options.forceDevice, options.python);
 	} else if (options.google == "picovoice") {
-		const { PicovoiceASR } = await import("./asr/picovoice");
+		const { PicovoiceASR } = await import("./asr/picovoice.js");
 		asr = new PicovoiceASR();
 	} else {
-		const { GoogleASR } = await import("./asr/google");
+		const { GoogleASR } = await import("./asr/google.js");
 		asr = new GoogleASR();
 	}
 	// When the transcription result is ready, pass it to LLM
 	asr.on("result", result => {
+		console.log(result);
 		llm.process(result);
 	});
 
 	// Setup large language model
 	let llm: LLM;
 	if (options.llm == "ollama") {
-		const { OllamaLLM } = await import("./llm/ollama");
-		llm = new OllamaLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.ollamaHost, options.ollamaModel, options.systemPromptFile);
+		const { OllamaLLM } = await import("./llm/ollama.js");
+		llm = new OllamaLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile, options.ollamaHost, options.ollamaModel);
 	} else {
-		const { DeepseekLLM } = await import("./llm/deepseek");
+		const { DeepseekLLM } = await import("./llm/deepseek.js");
 		llm = new DeepseekLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile);
 	}
 	// LLM outputs, pass it to TTS
-	llm.on("result", result => {
-		console.log(result);
+	llm.on("line", line => {
+		console.log(line);
+	});
+	llm.on("result", () => {
 		wake.unlock();
 	});
 

@@ -13,12 +13,39 @@ export abstract class Command {
 
 	static async handleResponse(message: string) {
 		let outputs: WrappedResponse[] = [];
-		for (const line of message.split("\n")) {
-			const [key, value] = line.split(/\s+(.*)/s);
-			if (this.commands.has(key)) {
-				console.log("Calling", key);
-				outputs.push(await this.commands.get(key)!.handleWrapper(value));
-			} else outputs.push({ isRag: true, response: `Unknown command "${key}"` });
+		const lines = message.split("\n");
+		for (let ii = 0; ii < lines.length; ii++) {
+			const line = lines[ii];
+			// This may be a command
+			if (line.startsWith("/")) {
+				const [key, value] = line.split(/\s+(.*)/s);
+				const cmd = key.slice(1);
+				if (this.commands.has(cmd)) {
+					// This is a command
+					let input = value;
+					while (++ii < lines.length) {
+						const line = lines[ii];
+						if (line.startsWith("/")) {
+							const [key, _] = line.split(/\s+(.*)/s);
+							if (this.commands.has(key.slice(1))) {
+								// This is a command. We will let next iteration handle it
+								ii--;
+								break;
+							} else {
+								input += "\n" + line;
+							}
+						}
+					}
+					console.log("Calling", key);
+					outputs.push(await this.commands.get(cmd)!.handleWrapper(input));
+				} else {
+					// Assume everything uncaught to be chat
+					outputs.push({ isRag: false, response: line });
+				}
+			} else {
+				// Assume everything uncaught to be chat
+				outputs.push({ isRag: false, response: line });
+			}
 		}
 		return outputs;
 	}
@@ -29,8 +56,12 @@ export abstract class Command {
 	}
 
 	static async init() {
-		const chat = (await import("./cmd/chat")).default;
-		this.commands.set(chat.name, chat);
+		const commands: Command[] = [
+			(await import("./cmd/chat.js")).default.default,
+			(await import("./cmd/lookup.js")).default.default,
+			(await import("./cmd/remind.js")).default.default
+		];
+		commands.forEach(cmd => this.commands.set(cmd.name, cmd));
 	}
 
 	readonly name: string;
@@ -66,9 +97,9 @@ export abstract class Command {
 				names.push(`{${arg.name}}`);
 				descs.push(`Replace {${arg.name}} with ${arg.description}${arg.description.endsWith(".") ? "" : "."}`);
 			});
-			args = names.join(" ");
-			argsDetail = descs.join(" ");
+			args = " " + names.join(" ");
+			argsDetail = " " + descs.join(" ");
 		}
-		return `${this.name}${args} - ${this.description}${this.description.endsWith(".") ? "" : "."}${argsDetail}`
+		return `/${this.name}${args} - ${this.description}${this.description.endsWith(".") ? "" : "."}${argsDetail}`
 	}
 }

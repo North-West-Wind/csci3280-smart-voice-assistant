@@ -7,6 +7,7 @@ export type TypedMessage = Message & { type?: "req"|"res" };
 
 export declare interface LLM {
 	on(event: "partial", listener: (word: string) => void): this;
+	on(event: "line", listener: (line: string) => void): this;
 	on(event: "result", listener: (output: string) => void): this;
 }
 
@@ -52,11 +53,13 @@ export abstract class LLM extends EventEmitter {
 				// don't forget in the middle of conversation!
 				if (this.forgetTimeout) this.forgetTimeout.refresh();
 				const message: Message = { role: "assistant", content: await this.chat([this.systemPrompt].concat(this.messages)) };
+				console.log(message.content);
 				this.messages.push(message);
 				const responses = await Command.handleResponse(message.content);
 				const filtered = responses.filter(response => {
 					if (response.isRag) return true;
 					chats.push(response.response);
+					this.emit("line", response.response);
 					return false;
 				});
 				if (filtered.length) {

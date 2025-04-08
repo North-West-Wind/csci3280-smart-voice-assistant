@@ -11,7 +11,6 @@ export class GoogleASR extends ASR {
 		super();
 
 		this.client = new SpeechClient();
-
 	}
 
 	start() {

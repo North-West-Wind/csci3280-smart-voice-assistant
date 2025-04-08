@@ -19,7 +19,7 @@ if len(sys.argv) < 3:
 FASTER = sys.argv[1] == "faster"
 MODEL = sys.argv[2]
 DEVICE = ""
-if len(sys.argv) >= 3:
+if len(sys.argv) >= 4:
 	DEVICE = sys.argv[3]
 	if DEVICE != "cpu" and DEVICE != "cuda":
 		DEVICE = ""
@@ -65,6 +65,7 @@ def transcribe(message: str):
 		print("result " + text)
 
 manager.add_listener(transcribe)
+print(f"{'Faster ' if FASTER else ''}Whisper is ready")
 
 # A loop to keep the program running
 while True:

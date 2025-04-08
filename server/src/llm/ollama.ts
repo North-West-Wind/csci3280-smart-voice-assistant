@@ -11,6 +11,7 @@ export class OllamaLLM extends LLM {
 		this.ready = false;
 		this.ollama = new Ollama({ host: ollamaHost });
 		this.model = model;
+		this.ensureModel();
 	}
 
 	async ensureModel() {
