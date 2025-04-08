@@ -11,9 +11,9 @@ program
 	.addOption(new Option("--wake <method>", "method for waking up the voice assistant").default("manual").choices(["manual", "openwakeword"]))
 	.option("--wakeword <model>", "(only for --wake openwakeword) model for wake word in tflite or onnx format", "./wakewords/summatia.tflite")
 	// asr options
-	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(["whisper", "picovoice"]))
-	.option("--picovoice <key>", "(only for --asr picovoice) access key for picovoice")
+	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(["whisper", "picovoice", "google"]))
 	.option("--whisper-model <model>", "(only for --asr whisper) model size for (faster) whisper", "base")
+	.option("--picovoice <key>", "(only for --asr picovoice) access key for picovoice")
 	.option("--faster-whisper", "(only for --asr whisper) use faster whisper implementation")
 	// llm options
 	.addOption(new Option("--llm <method>", "method for function calling and response").default("deepseek").choices(["deepseek", "ollama"]))
@@ -77,9 +77,12 @@ server.on("connection", socket => {
 	if (options.asr == "whisper") {
 		const { LocalASR } = await import("./asr/local");
 		asr = new LocalASR(options.whisperModel, options.fasterWhisper, options.forceDevice, options.python);
-	} else {
+	} else if (options.google == "picovoice") {
 		const { PicovoiceASR } = await import("./asr/picovoice");
 		asr = new PicovoiceASR();
+	} else {
+		const { GoogleASR } = await import("./asr/google");
+		asr = new GoogleASR();
 	}
 	// When the transcription result is ready, pass it to LLM
 	asr.on("result", result => {
