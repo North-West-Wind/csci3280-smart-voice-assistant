@@ -5,17 +5,22 @@ if __name__ != "__main__":
 
 import numpy as np
 import speech_recognition as sr
-from faster_whisper import WhisperModel
 import torch
 
 import time
 
 from common.reader import InputMan
 
-MODEL = sys.argv[1]
+if len(sys.argv) < 3:
+	print("Invalid usage of stt.py")
+	print(f"Usage: {sys.argv[0]} <faster|whisper> <model> [device]")
+	sys.exit(1)
+
+FASTER = sys.argv[1] == "faster"
+MODEL = sys.argv[2]
 DEVICE = ""
 if len(sys.argv) >= 3:
-	DEVICE = sys.argv[2]
+	DEVICE = sys.argv[3]
 	if DEVICE != "cpu" and DEVICE != "cuda":
 		DEVICE = ""
 if DEVICE == "":
@@ -27,7 +32,14 @@ r.dynamic_energy_threshold = False
 r.energy_threshold = 1000
 r.pause_threshold = 1.5
 
-model = WhisperModel(MODEL, device=DEVICE, compute_type="float32", compute_type="float32")
+# Initialize (faster) whisper model
+model = None
+if FASTER:
+	from faster_whisper import WhisperModel
+	model = WhisperModel(MODEL, device=DEVICE, compute_type="float32")
+else:
+	import whisper
+	model = whisper.load_model(MODEL).to(DEVICE)
 
 manager = InputMan()
 
@@ -38,11 +50,18 @@ def transcribe(message: str):
 		print("Listening to transcribe...")
 		audio = r.listen(source)
 		print("Stopped listening")
+		# Get numpy audio data
 		audio_np = np.frombuffer(audio.get_raw_data(), dtype=np.int16).astype(np.float32) / 32768.0
-		segments, info = model.transcribe(audio_np)
+		# Transcribe depending on whether we are using faster whisper or not
 		text = ""
-		for segment in segments:
-			text += segment.text
+		if FASTER:
+			segments, info = model.transcribe(audio_np)
+			for segment in segments:
+				text += segment.text
+		else:
+			result = model.transcribe(torch.from_numpy(audio_np), fp16=False)
+			text = result["text"]
+		# Send transcription
 		print("result " + text)
 
 manager.add_listener(transcribe)

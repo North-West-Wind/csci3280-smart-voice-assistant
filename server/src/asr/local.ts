@@ -6,7 +6,7 @@ export class LocalASR extends ASR {
 	private running: boolean;
 	private shell?: PythonShell;
 
-	constructor(model: string, device?: string, pythonPath?: string) {
+	constructor(model: string, faster: boolean, device?: string, pythonPath?: string) {
 		super();
 		this.ready = false;
 		this.running = false;
@@ -15,7 +15,7 @@ export class LocalASR extends ASR {
 			const version = output[0].split(" ")[1].split(".").map(s => parseInt(s));
 			if (version[0] != 3 || version[1] > 10) throw new Error("Invalid Python version. It must be Python 3 but <= 3.10"); 
 
-			this.shell = new PythonShell("./python/stt.py", { pythonPath, mode: "text", pythonOptions: ["-u"], args: [model].concat(device ? [device] : []) });
+			this.shell = new PythonShell("./python/stt.py", { pythonPath, mode: "text", pythonOptions: ["-u"], args: [faster ? "faster" : "n", model].concat(device ? [device] : []) });
 			this.shell.on("message", (message: string) => {
 				const arr = message.split(" ");
 				const type = arr.shift();

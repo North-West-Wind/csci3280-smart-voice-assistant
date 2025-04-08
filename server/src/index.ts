@@ -13,6 +13,7 @@ program
 	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(["whisper", "picovoice"]))
 	.option("--picovoice <key>", "(only for --asr picovoice) access key for picovoice")
 	.option("--whisper-model <model>", "(only for --asr whisper) model size for (faster) whisper", "base")
+	.option("--faster-whisper", "(only for --asr whisper) use faster whisper implementation")
 	// llm options
 	.addOption(new Option("--llm <method>", "method for function calling and response").default("deepseek").choices(["deepseek", "ollama"]))
 	.option("--memory-length <number>", "amount of messages to store as context", "20")
@@ -67,7 +68,7 @@ server.on("connection", socket => {
 	let asr: ASR;
 	if (options.asr == "whisper") {
 		const { LocalASR } = await import("./asr/local");
-		asr = new LocalASR(options.whisperModel, options.forceDevice, options.python);
+		asr = new LocalASR(options.whisperModel, options.fasterWhisper, options.forceDevice, options.python);
 	} else {
 		const { PicovoiceASR } = await import("./asr/picovoice");
 		asr = new PicovoiceASR();
