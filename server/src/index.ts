@@ -4,6 +4,7 @@ import { ASR } from "./asr";
 import { Wake } from "./wake";
 import { Option, program } from "commander";
 import { LLM } from "./llm";
+import { Command } from "./cmd";
 
 program
 	// wake word/trigger options
@@ -18,6 +19,7 @@ program
 	.addOption(new Option("--llm <method>", "method for function calling and response").default("deepseek").choices(["deepseek", "ollama"]))
 	.option("--memory-length <number>", "amount of messages to store as context", "20")
 	.option("--memory-duration <number>", "amount of time (in seconds) to store the context", "60")
+	.option("--system-prompt-file <path>", "path to a text file containing the system prompt template", "system.txt")
 	.option("--deepseek <key>", "(only for --llm deepseek) api key for deepseek")
 	.option("--ollama-host <url>", "(only for --llm ollama) host url of local ollama", "http://localhost:11434")
 	.option("--ollama-model <model>", "(only for --llm ollama) ollama model to use")
@@ -52,6 +54,10 @@ server.on("connection", socket => {
  * Each component has a few choices, mainly differing in local or remote
  */
 (async () => {
+	// Initialize all the commands LLM can use
+	await Command.init();
+
+	// Setup wake word detection/manual trigger 
 	let wake: Wake;
 	if (options.wake == "openwakeword") {
 		const { OpenWakeWord } = await import("./wake/oww");
@@ -60,11 +66,13 @@ server.on("connection", socket => {
 		const { ManualWake } = await import("./wake/manual");
 		wake = new ManualWake(server);
 	}
+	// If the assistant is triggered, disable wake and start transcribing
 	wake.on("wake", () => {
 		wake.lock();
 		asr.start();
 	});
 	
+	// Setup automatic speech recognition
 	let asr: ASR;
 	if (options.asr == "whisper") {
 		const { LocalASR } = await import("./asr/local");
@@ -73,24 +81,27 @@ server.on("connection", socket => {
 		const { PicovoiceASR } = await import("./asr/picovoice");
 		asr = new PicovoiceASR();
 	}
+	// When the transcription result is ready, pass it to LLM
 	asr.on("result", result => {
 		llm.process(result);
 	});
 
+	// Setup large language model
 	let llm: LLM;
 	if (options.llm == "ollama") {
 		const { OllamaLLM } = await import("./llm/ollama");
 		llm = new OllamaLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.ollamaHost, options.ollamaModel);
 	} else {
 		const { DeepseekLLM } = await import("./llm/deepseek");
-		llm = new DeepseekLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration));
+		llm = new DeepseekLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile);
 	}
+	// LLM outputs, pass it to TTS
 	llm.on("result", result => {
 		console.log(result);
 		wake.unlock();
 	});
 
-
+	// When process is interrupted, pass the interrupt to modules as well
 	process.on("SIGINT", () => {
 		console.log("Interupted. Shutting down...");
 		wake.interrupt();
@@ -99,8 +110,3 @@ server.on("connection", socket => {
 		process.exit(0);
 	});
 })();
-
-/*import("./asr/whisper").then(({ WhisperASR }) => {
-	const asr = new WhisperASR("base", false);
-	asr.start();
-});*/
