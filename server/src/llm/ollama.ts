@@ -1,5 +1,6 @@
 import { Ollama } from "ollama";
 import { LLM, TypedMessage } from "../llm";
+import { Command } from "../cmd";
 
 export class OllamaLLM extends LLM {
 	private ready: boolean;
@@ -21,6 +22,7 @@ export class OllamaLLM extends LLM {
 			if (!this.model.includes(":")) name = name.split(":")[0];
 			if (name == this.model) {
 				exists = true;
+				this.model = model.name;
 				break;
 			}
 		}
@@ -31,20 +33,19 @@ export class OllamaLLM extends LLM {
 
 	protected async chat(messages: TypedMessage[]) {
 		let res = await this.ollama.chat({ model: this.model, messages, stream: true });
-		let isFirst = true, isChat = false;
+		let isChat = false, isThink = false, immThink = false;
 		let content = "";
 		for await (const part of res) {
 			content += part.message.content;
-			if (isChat)
-				this.emit("partial", part.message.content);
 			if (part.message.content.includes("\n")) {
-				isFirst = true;
-				isChat = false;
+				const start = part.message.content.split("\n").pop()!.split(" ").shift()!;
+				if (start.startsWith("/chat")) isChat = true;
+				else if (start.startsWith("/") && Command.isValidCommand(start)) isChat = false;
+				else if (start.startsWith("<think>")) isThink = true;
+				else if (start.startsWith("</think>")) immThink = !(isThink = false);
 			}
-			if (isFirst && part.message.content.split("\n").pop()!.startsWith("chat")) {
-				isFirst = false;
-				isChat = true;
-			}
+			this.emit("partial", part.message.content, isChat ? "chat" : (isThink || immThink ? "think" : "none"));
+			immThink = false;
 		}
 		return content;
 	}

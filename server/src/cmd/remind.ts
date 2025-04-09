@@ -1,22 +1,27 @@
 import { prettyFormat } from "@imranbarbhuiya/duration";
 import { Command } from "../cmd";
-import { parse, toSeconds } from "iso8601-duration";
 
 class RemindCommand extends Command {
 	constructor() {
-		super("remind", "Set a reminder for an event.", [{ name: "time", description: "the duration (in ISO 8601 format) until the event happens." }, { name: "message", description: "the reminder message." }]);
+		super("remind", "Set a reminder for an event.", [{ name: "time", description: "the duration until the event happens." }, { name: "message", description: "the reminder message" }]);
 	}
 
-	handle(message: string) {
-		const [duration, event] = message.split(/\s+(.*)/s);
-		try {
-			const secs = toSeconds(parse(duration));
-			setTimeout(() => {
-				console.log(`Time's up for ${event}`);
-			}, secs * 1000);
-			return `Set reminder for "${event}" in ${prettyFormat(secs * 1000)}`;
-		} catch (err) {
-			return `${duration} is not a valid ISO 8601 duration.`;
+	async handle(message: string) {
+		const split = message.split("|");
+		if (split.length < 2) {
+			return "No duration specified, or cannot extract duration from command.";
+		} else {
+			const duration = split.shift()!;
+			const event = split.join("|");
+			const ms = (await import("parse-duration")).default(duration);
+			if (ms) {
+				setTimeout(() => {
+					console.log(`Time's up for ${event}`);
+				}, ms);
+				return `Set reminder for "${event}" in ${prettyFormat(ms)}`;
+			} else {
+				return `"${duration}" is not a duration in the required format.`;
+			}
 		}
 	}
 }

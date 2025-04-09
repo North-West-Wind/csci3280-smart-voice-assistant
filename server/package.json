@@ -29,9 +29,9 @@
     "dotenv": "^16.4.7",
     "google-sr": "^5.0.0",
     "html-to-text": "^9.0.5",
-    "iso8601-duration": "^2.1.2",
     "node-mic": "^1.0.1",
     "ollama": "^0.5.14",
+    "parse-duration": "^2.1.4",
     "python-shell": "^5.0.0",
     "ws": "^8.18.1"
   }

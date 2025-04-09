@@ -100,9 +100,13 @@ server.on("connection", socket => {
 		llm = new DeepseekLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile);
 	}
 	// LLM outputs, pass it to TTS
-	llm.on("line", line => {
-		console.log(line);
+	llm.on("partial", (word, ctx) => {
+		//console.log(`${ctx}: "${word}"`);
+		if (ctx == "think") process.stdout.write(word);
 	});
+	//llm.on("line", line => {
+	//	console.log(line);
+	//});
 	llm.on("result", () => {
 		wake.unlock();
 	});

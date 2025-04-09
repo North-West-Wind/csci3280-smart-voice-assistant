@@ -6,7 +6,7 @@ import { Command } from "./cmd";
 export type TypedMessage = Message & { type?: "req"|"res" };
 
 export declare interface LLM {
-	on(event: "partial", listener: (word: string) => void): this;
+	on(event: "partial", listener: (word: string, context: "none" | "think" | "chat") => void): this;
 	on(event: "line", listener: (line: string) => void): this;
 	on(event: "result", listener: (output: string) => void): this;
 }
@@ -41,7 +41,7 @@ export abstract class LLM extends EventEmitter {
 				this.messages = [];
 			}, this.duration * 1000);
 	
-			this.messages.push({ role: "user", type: "req", content: input });
+			this.messages.push({ role: "user", type: "req", content: input.trim() });
 			this.userMessages++;
 			while (this.userMessages > this.memory) {
 				const first = this.messages.shift()!;
@@ -53,19 +53,24 @@ export abstract class LLM extends EventEmitter {
 				// don't forget in the middle of conversation!
 				if (this.forgetTimeout) this.forgetTimeout.refresh();
 				const message: Message = { role: "assistant", content: await this.chat([this.systemPrompt].concat(this.messages)) };
-				console.log(message.content);
+				//console.log(message.content);
 				this.messages.push(message);
 				const responses = await Command.handleResponse(message.content);
-				const filtered = responses.filter(response => {
-					if (response.isRag) return true;
-					chats.push(response.response);
-					this.emit("line", response.response);
-					return false;
-				});
-				if (filtered.length) {
-					this.messages.push({ role: "user", type: "res", content: filtered.map(res => res.response).join("\n\n") });
+				if (!responses.length) {
+					this.messages.push({ role: "user", type: "res", content: "Response from system: You must use at least 1 command in your output! If you want to send something, use /chat" });
 					hasResponse = true;
-				} else hasResponse = false;
+				} else {
+					const cmdOutputs = responses.filter(response => {
+						if (response.isRag) return true;
+						chats.push(response.response);
+						this.emit("line", response.response);
+						return false;
+					});
+					if (cmdOutputs.length) {
+						this.messages.push({ role: "user", type: "res", content: cmdOutputs.map(res => res.response).join("\n\n") });
+						hasResponse = true;
+					} else hasResponse = false;
+				}
 			} while (hasResponse);
 			this.emit("result", chats.join("\n\n"));
 	}

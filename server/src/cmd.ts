@@ -13,39 +13,43 @@ export abstract class Command {
 
 	static async handleResponse(message: string) {
 		let outputs: WrappedResponse[] = [];
+		let thinking = false;
+		let currentCommand: Command | undefined;
+		let input = "";
 		const lines = message.split("\n");
 		for (let ii = 0; ii < lines.length; ii++) {
 			const line = lines[ii];
-			// This may be a command
-			if (line.startsWith("/")) {
+			if (line.trim() == "<think>") {
+				// This is deepseek thinking
+				thinking = true;
+			} else if (line.trim() == "</think>") {
+				// This is thinking done
+				thinking = false;
+			} else if (!thinking && line.startsWith("/")) {
+				// This may be a command
 				const [key, value] = line.split(/\s+(.*)/s);
 				const cmd = key.slice(1);
 				if (this.commands.has(cmd)) {
 					// This is a command
-					let input = value;
-					while (++ii < lines.length) {
-						const line = lines[ii];
-						if (line.startsWith("/")) {
-							const [key, _] = line.split(/\s+(.*)/s);
-							if (this.commands.has(key.slice(1))) {
-								// This is a command. We will let next iteration handle it
-								ii--;
-								break;
-							} else {
-								input += "\n" + line;
-							}
-						}
+					if (currentCommand) {
+						// Process the previous command
+						console.log("Calling", currentCommand.name);
+						outputs.push(await currentCommand.handleWrapper(input));
 					}
-					console.log("Calling", key);
-					outputs.push(await this.commands.get(cmd)!.handleWrapper(input));
+					currentCommand = this.commands.get(cmd)!;
+					input = value;
 				} else {
-					// Assume everything uncaught to be chat
-					outputs.push({ isRag: false, response: line });
+					// Not a command, so it's input
+					input += "\n" + line;
 				}
-			} else {
-				// Assume everything uncaught to be chat
-				outputs.push({ isRag: false, response: line });
+			} else if (!thinking) {
+				// Absolutely not a command, so it's input
+				input += "\n" + line;
 			}
+		}
+		if (currentCommand) {
+			console.log("Calling", currentCommand.name);
+			outputs.push(await currentCommand.handleWrapper(input));
 		}
 		return outputs;
 	}
@@ -62,6 +66,11 @@ export abstract class Command {
 			(await import("./cmd/remind.js")).default.default
 		];
 		commands.forEach(cmd => this.commands.set(cmd.name, cmd));
+	}
+
+	static isValidCommand(cmd: string) {
+		if (cmd.startsWith("/")) cmd = cmd.slice(1);
+		return this.commands.has(cmd);
 	}
 
 	readonly name: string;
@@ -84,7 +93,7 @@ export abstract class Command {
 	}
 
 	private responsePrefix(message: string) {
-		return `Response from "${this.name} ${message}":\n\n`;
+		return `Response from command "/${this.name}${message ? " " + message : ""}":\n\n`;
 	}
 
 	usage() {
@@ -97,8 +106,8 @@ export abstract class Command {
 				names.push(`{${arg.name}}`);
 				descs.push(`Replace {${arg.name}} with ${arg.description}${arg.description.endsWith(".") ? "" : "."}`);
 			});
-			args = " " + names.join(" ");
-			argsDetail = " " + descs.join(" ");
+			args = " " + names.join(" | ");
+			argsDetail = " " + descs.join(" ") + (this.args.length > 1 ? " Seperate the arguments with \"|\"." : "");
 		}
 		return `/${this.name}${args} - ${this.description}${this.description.endsWith(".") ? "" : "."}${argsDetail}`
 	}
