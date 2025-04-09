@@ -2,8 +2,8 @@ import { EventEmitter } from "stream";
 import { WebSocket } from "ws";
 
 export declare interface ASR {
-	on(event: "partial", listener: (partial: string) => void): this;
-	on(event: "result", listener: (sentence: string) => void): this;
+	on(event: "unsure", listener: (transcript: string) => void): this;
+	on(event: "result", listener: (transcript: string) => void): this;
 }
 
 export abstract class ASR extends EventEmitter {

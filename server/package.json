@@ -17,6 +17,7 @@
     "@types/tmp": "^0.2.6",
     "@types/ws": "^8.18.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "html-to-text": "^9.0.5",
     "node-mic": "^1.0.1",
     "ollama": "^0.5.14",
+    "openai": "^4.93.0",
     "parse-duration": "^2.1.4",
     "python-shell": "^5.0.0",
     "ws": "^8.18.1"

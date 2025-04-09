@@ -11,16 +11,14 @@ program
 	.addOption(new Option("--wake <method>", "method for waking up the voice assistant").default("manual").choices(["manual", "openwakeword"]))
 	.option("--wakeword <model>", "(only for --wake openwakeword) model for wake word in tflite or onnx format", "./wakewords/summatia.tflite")
 	// asr options
-	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(["whisper", "picovoice", "google"]))
+	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(["whisper", "google"]))
 	.option("--whisper-model <model>", "(only for --asr whisper) model size for (faster) whisper", "base")
-	.option("--picovoice <key>", "(only for --asr picovoice) access key for picovoice")
 	.option("--faster-whisper", "(only for --asr whisper) use faster whisper implementation")
 	// llm options
 	.addOption(new Option("--llm <method>", "method for function calling and response").default("deepseek").choices(["deepseek", "ollama"]))
 	.option("--memory-length <number>", "amount of messages to store as context", "20")
 	.option("--memory-duration <number>", "amount of time (in seconds) to store the context", "60")
 	.option("--system-prompt-file <path>", "path to a text file containing the system prompt template", "system.txt")
-	.option("--deepseek <key>", "(only for --llm deepseek) api key for deepseek")
 	.option("--ollama-host <url>", "(only for --llm ollama) host url of local ollama", "http://localhost:11434")
 	.option("--ollama-model <model>", "(only for --llm ollama) ollama model to use")
 	// misc/common options
@@ -77,9 +75,6 @@ server.on("connection", socket => {
 	if (options.asr == "whisper") {
 		const { LocalASR } = await import("./asr/local.js");
 		asr = new LocalASR(options.whisperModel, options.fasterWhisper, options.forceDevice, options.python);
-	} else if (options.google == "picovoice") {
-		const { PicovoiceASR } = await import("./asr/picovoice.js");
-		asr = new PicovoiceASR();
 	} else {
 		const { GoogleASR } = await import("./asr/google.js");
 		asr = new GoogleASR();

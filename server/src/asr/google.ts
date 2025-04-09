@@ -27,13 +27,14 @@ export class GoogleASR extends ASR {
 				encoding: google.cloud.speech.v1.RecognitionConfig.AudioEncoding.LINEAR16,
 				sampleRateHertz: 16000
 			},
-			interimResults: false
+			interimResults: true
 		};
 
 		const recognizer = this.client
 			.streamingRecognize(request)
 			.on("data", data => {
-				this.emit("result", data.results[0].alternatives[0].transcript);
+				if (data.results[0].isFinal) this.emit("result", data.results[0].alternatives[0].transcript);
+				else this.emit("unsure", data.results[0].alternatives[0].transcript);
 			});
 
 		this.mic.getAudioStream().pipe(recognizer);
