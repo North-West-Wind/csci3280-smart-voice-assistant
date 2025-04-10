@@ -48,6 +48,7 @@ export class LocalASR extends ASR {
 	}
 
 	interrupt() {
+		super.interrupt();
 		this.stop();
 		this.shell?.kill("SIGINT");
 	}

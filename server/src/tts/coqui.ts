@@ -51,4 +51,9 @@ export class CoquiTTS extends TTS {
 		this.shell?.send(line);
 		await prom;
 	}
+
+	interrupt() {
+		super.interrupt();
+		this.shell?.kill("SIGINT");
+	}
 }

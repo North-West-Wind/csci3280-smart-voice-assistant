@@ -44,8 +44,9 @@ if (isNaN(port)) {
 const server = new WebSocketServer({ port });
 
 server.on("connection", socket => {
-	// First message identifies the purpose of the socket
-	socket.once("message", message => {
+	// Sockets will communicate using strings
+	socket.on("message", message => {
+		
 	});
 
 	socket.on("error", console.error);
@@ -55,74 +56,153 @@ server.on("connection", socket => {
  * Components: Wake -> ASR -> LLM -> TTS
  * Each component has a few choices, mainly differing in local or remote
  */
+
+// Declare variables
+let wake: Wake | undefined;
+let asr: ASR | undefined;
+let llm: LLM | undefined;
+let tts: TTS | undefined;
+
+function stop() {
+	wake?.interrupt();
+	asr?.interrupt();
+	llm?.interrupt();
+}
+
+// Setup wake word detection/manual trigger
+async function changeWake(method: string) {
+	try {
+		if (wake) {
+			wake.interrupt();
+			wake = undefined;
+		}
+		switch (method) {
+			case "openwakeword":
+				const { OpenWakeWord } = await import("./wake/oww.js");
+				wake = new OpenWakeWord(options.wakeword, options.python);
+				break;
+			case "manual":
+				const { ManualWake } = await import("./wake/manual.js");
+				wake = new ManualWake(server);
+				break;
+		}
+		if (!wake) throw new Error("Wake or trigger method is invalid!");
+
+		wake.on("wake", () => {
+			wake?.lock();
+			asr?.start();
+		});
+	} catch (err) {
+		console.error(err);
+		stop();
+	}
+}
+
+// Setup automatic speech recognition
+async function changeASR(method: string) {
+	try {
+		if (asr) {
+			asr.interrupt();
+			asr = undefined;
+		}
+		
+		switch (method) {
+			case "whisper":
+				const { LocalASR } = await import("./asr/local.js");
+				asr = new LocalASR(options.whisperModel, options.fasterWhisper, options.forceDevice, options.python);
+				break;
+			case "google":
+				const { GoogleASR } = await import("./asr/google.js");
+				asr = new GoogleASR();
+				break;
+		}
+		if (!asr) throw new Error("ASR method is invalid!");
+
+		// When the transcription result is ready, pass it to LLM
+		asr.on("result", result => {
+			console.log(result);
+			llm?.process(result);
+		});
+	} catch (err) {
+		console.error(err);
+		stop();
+	}
+}
+
+// Setup large language model
+async function changeLLM(method: string) {
+	try {
+		if (llm) {
+			llm.interrupt();
+			llm = undefined;
+		}
+
+		switch (method) {
+			case "ollama":
+				const { OllamaLLM } = await import("./llm/ollama.js");
+				llm = new OllamaLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile, options.ollamaHost, options.ollamaModel);
+				break;
+			case "deepseek":
+				const { DeepseekLLM } = await import("./llm/deepseek.js");
+				llm = new DeepseekLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile);
+				break;
+		}
+		if (!llm) throw new Error("LLM method is invalid!");
+
+		// LLM outputs, pass it to TTS
+		llm.on("partial", (word, ctx) => {
+			//console.log(`${ctx}: "${word}"`);
+			if (ctx == "think") process.stdout.write(word);
+		});
+		//llm.on("line", line => {
+		//	console.log(line);
+		//});
+		llm.on("result", () => {
+			wake?.unlock();
+		});
+	} catch (err) {
+		console.error(err);
+		stop();
+	}
+}
+
+// Setup text to speech
+async function changeTTS(method: string) {
+	try {
+		if (tts) {
+			tts.interrupt();
+			tts = undefined;
+		}
+
+		switch (method) {
+			case "coqui":
+				const { CoquiTTS } = await import("./tts/coqui.js");
+				tts = new CoquiTTS(options.coquiModel, options.forceDevice, options.python);
+				break;
+		}
+		if (!tts) throw new Error("TTS method is invalid!");
+
+	} catch (err) {
+		console.error(err);
+		stop();
+	}
+}
+
+// When process is interrupted, pass the interrupt to modules as well
+process.on("SIGINT", () => {
+	console.log("Interupted. Shutting down...");
+	stop();
+	console.log("Done!");
+	process.exit(0);
+});
+
+// Initialize all components
 (async () => {
 	// Initialize all the commands LLM can use
 	await Command.init();
 
-	// Setup wake word detection/manual trigger 
-	let wake: Wake;
-	if (options.wake == "openwakeword") {
-		const { OpenWakeWord } = await import("./wake/oww.js");
-		wake = new OpenWakeWord(options.wakeword, options.python);
-	} else {
-		const { ManualWake } = await import("./wake/manual.js");
-		wake = new ManualWake(server);
-	}
-	// If the assistant is triggered, disable wake and start transcribing
-	wake.on("wake", () => {
-		wake.lock();
-		asr.start();
-	});
-	
-	// Setup automatic speech recognition
-	let asr: ASR;
-	if (options.asr == "whisper") {
-		const { LocalASR } = await import("./asr/local.js");
-		asr = new LocalASR(options.whisperModel, options.fasterWhisper, options.forceDevice, options.python);
-	} else {
-		const { GoogleASR } = await import("./asr/google.js");
-		asr = new GoogleASR();
-	}
-	// When the transcription result is ready, pass it to LLM
-	asr.on("result", result => {
-		console.log(result);
-		llm.process(result);
-	});
-
-	// Setup large language model
-	let llm: LLM;
-	if (options.llm == "ollama") {
-		const { OllamaLLM } = await import("./llm/ollama.js");
-		llm = new OllamaLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile, options.ollamaHost, options.ollamaModel);
-	} else {
-		const { DeepseekLLM } = await import("./llm/deepseek.js");
-		llm = new DeepseekLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile);
-	}
-	// LLM outputs, pass it to TTS
-	llm.on("partial", (word, ctx) => {
-		//console.log(`${ctx}: "${word}"`);
-		if (ctx == "think") process.stdout.write(word);
-	});
-	//llm.on("line", line => {
-	//	console.log(line);
-	//});
-	llm.on("result", () => {
-		wake.unlock();
-	});
-
-	// Setup text to speech
-	let tts: TTS;
-	if (options.tts == "coqui") {
-		const { CoquiTTS } = await import("./tts/coqui.js");
-		tts = new CoquiTTS(options.coquiModel, options.forceDevice, options.python);
-	}
-
-	// When process is interrupted, pass the interrupt to modules as well
-	process.on("SIGINT", () => {
-		console.log("Interupted. Shutting down...");
-		wake.interrupt();
-		asr.interrupt();
-		console.log("Done!");
-		process.exit(0);
-	});
+	await changeWake(options.wake);
+	await changeASR(options.asr);
+	await changeLLM(options.llm);
+	await changeTTS(options.tts);
 })();

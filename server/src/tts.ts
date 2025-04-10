@@ -17,4 +17,8 @@ export abstract class TTS extends EventEmitter {
 			this.lines.delete(id);
 		});
 	}
+
+	interrupt() {
+		this.removeAllListeners();
+	}
 }

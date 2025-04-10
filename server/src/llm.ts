@@ -20,6 +20,8 @@ export abstract class LLM extends EventEmitter {
 	private userMessages = 0;
 	private forgetTimeout?: NodeJS.Timeout;
 
+	private interrupted = false;
+
 	constructor(memory: number, duration: number, systemPromptFile: string) {
 		super();
 		this.memory = memory;
@@ -71,7 +73,12 @@ export abstract class LLM extends EventEmitter {
 						hasResponse = true;
 					} else hasResponse = false;
 				}
-			} while (hasResponse);
+			} while (hasResponse && !this.interrupted);
 			this.emit("result", chats.join("\n\n"));
+	}
+
+	interrupt() {
+		this.removeAllListeners();
+		this.interrupted = true;
 	}
 }
