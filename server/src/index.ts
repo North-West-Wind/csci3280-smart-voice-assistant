@@ -5,6 +5,7 @@ import { Wake } from "./wake";
 import { Option, program } from "commander";
 import { LLM } from "./llm";
 import { Command } from "./cmd";
+import { TTS } from "./tts";
 
 program
 	// wake word/trigger options
@@ -15,12 +16,15 @@ program
 	.option("--whisper-model <model>", "(only for --asr whisper) model size for (faster) whisper", "base")
 	.option("--faster-whisper", "(only for --asr whisper) use faster whisper implementation")
 	// llm options
-	.addOption(new Option("--llm <method>", "method for function calling and response").default("deepseek").choices(["deepseek", "ollama"]))
+	.addOption(new Option("--llm <method>", "method for large-language model function calling and response").default("deepseek").choices(["deepseek", "ollama"]))
 	.option("--memory-length <number>", "amount of messages to store as context", "20")
 	.option("--memory-duration <number>", "amount of time (in seconds) to store the context", "60")
 	.option("--system-prompt-file <path>", "path to a text file containing the system prompt template", "system.txt")
 	.option("--ollama-host <url>", "(only for --llm ollama) host url of local ollama", "http://localhost:11434")
 	.option("--ollama-model <model>", "(only for --llm ollama) ollama model to use")
+	// tts options
+	.addOption(new Option("--tts <method>", "method for text-to-speech").default("coqui").choices(["coqui", "google", "sapi4"]))
+	.option("--coqui-model <model>", "(only for --tts coqui) coqui tts model to use, or \"list\" to get a list of them", "tts_models/multilingual/multi-dataset/your_tts")
 	// misc/common options
 	.option("--python <path>", "path to a python virtual environment (venv) with all dependencies from requirements.txt installed")
 	.option("--port <number>", "port number for the websocket server", "3280")
@@ -105,6 +109,13 @@ server.on("connection", socket => {
 	llm.on("result", () => {
 		wake.unlock();
 	});
+
+	// Setup text to speech
+	let tts: TTS;
+	if (options.tts == "coqui") {
+		const { CoquiTTS } = await import("./tts/coqui.js");
+		tts = new CoquiTTS(options.coquiModel, options.forceDevice, options.python);
+	}
 
 	// When process is interrupted, pass the interrupt to modules as well
 	process.on("SIGINT", () => {

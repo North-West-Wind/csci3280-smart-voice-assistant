@@ -8,6 +8,8 @@ export class DeepseekLLM extends LLM {
 	constructor(memory: number, duration: number, systemPromptFile: string) {
 		super(memory, duration, systemPromptFile);
 
+		if (!process.env.DEEPSEEK_KEY) throw new Error("No Deepseek API key found! Create a file named \".env\" under the \"server/\" directory and append \"DEEPSEEK_KEY=<key>\" to the file.");
+
 		this.client = new OpenAI({
 			baseURL: "https://api.deepseek.com",
 			apiKey: process.env.DEEPSEEK_KEY

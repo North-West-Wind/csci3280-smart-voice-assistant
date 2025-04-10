@@ -10,7 +10,8 @@ export class GoogleASR extends ASR {
 	constructor() {
 		super();
 
-		this.client = new SpeechClient();
+		if (!process.env.GOOGLE_KEY) throw new Error("No Google Cloud API key found! Create a file named \".env\" under the \"server/\" directory and append \"GOOGLE_KEY=<key>\" to the file. The API key should be able to call the Cloud Speech API.");
+		this.client = new SpeechClient({ apiKey: process.env.GOOGLE_KEY });
 	}
 
 	start() {
