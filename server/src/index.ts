@@ -41,12 +41,155 @@ if (isNaN(port)) {
 	port = DEFAULT_PORT;
 }
 
+// A lock in case of multiple clients
+let locked = false;
 const server = new WebSocketServer({ port });
 
 server.on("connection", socket => {
 	// Sockets will communicate using strings
-	socket.on("message", message => {
-		
+	// When first connected, send status of components
+	socket.send(`status ${!!wake} ${!!asr} ${!!llm} ${!!tts}`);
+
+	const success = () => socket.send("success");
+	const fail = (reason: string) => socket.send(`fail ${reason}`);
+
+	socket.on("message", async message => {
+		// Spin lock
+		while (locked) {
+			await new Promise(res => setTimeout(res, 100));
+		}
+		locked = true;
+
+		// Get the first word of the message
+		const args = message.toString("utf8").split(" ");
+		const action = args.shift()!;
+
+		switch (action) {
+			// Trigger ASR to start listening
+			case "trigger":
+				if (!wake) fail("nowake")
+				else {
+					wake.emit("wake");
+					success();
+				}
+				break;
+			// Set a new wake method
+			case "set-wake":
+				if (args.length < 1) fail("args");
+				else if (await changeWake(args.join(" "))) success();
+				else fail("invalid");
+				break;
+			// Set a new path to openwakeword model
+			case "set-wake-word":
+				if (args.length < 1) fail("args");
+				else {
+					const old = options.wakeword;
+					options.wakeword = args.join(" ");
+					if (await changeWake(activeWake)) success();
+					else {
+						options.wakeword = old;
+						fail("invalid");
+					}
+				}
+				break;
+			// set asr method
+			case "set-asr":
+				if (args.length < 1) fail("args");
+				else if (await changeASR(args.join(" "))) success();
+				else fail("invalid");
+				break;
+			// set whisper model
+			case "set-asr-model":
+				if (args.length < 1) fail("args");
+				else {
+					const old = options.whisperModel;
+					options.whisperModel = args.join(" ");
+					if (await changeASR(activeAsr)) success();
+					else {
+						options.whisperModel = old;
+						fail("invalid");
+					}
+				}
+				break;
+			// set whether to use faster whisper or not
+			case "set-asr-faster":
+				if (args.length < 1) fail("args");
+				else {
+					const old = options.fasterWhisper;
+					if (args[0].toLowerCase() == "true") options.fasterWhisper = true;
+					else if (args[0].toLowerCase() == "false") options.fasterWhisper = false;
+					else {
+						fail("invalid");
+						break;
+					}
+					if (await changeASR(activeAsr)) success();
+					else {
+						options.fasterWhisper = old;
+						fail("invalid");
+					}
+				}
+				break;
+			// set llm method
+			case "set-llm":
+				if (args.length < 1) fail("args");
+				else if (await changeLLM(args.join(" "))) success();
+				else fail("invalid");
+				break;
+			// set llm memory length/context or duration
+			case "set-llm-mem-len":
+			case "set-llm-mem-dur":
+				if (args.length < 1) fail("args");
+				else {
+					const key = action == "set-llm-mem-len" ? "memoryLength" : "memoryDuration";
+					const old = options[key];
+					options[key] = parseInt(args.join(" "));
+					if (isNaN(options[key])) {
+						options[key] = old;
+						fail("nan");
+					} else if (await changeLLM(activeLlm)) success();
+					else {
+						options[key] = old;
+						fail("invalid");
+					}
+				}
+				break;
+			case "set-llm-sys-prompt":
+			case "set-llm-ollama-host":
+			case "set-llm-ollama-model":
+				if (args.length < 1) fail("args");
+				else {
+					const key = action == "set-llm-sys-prompt" ? "systemPromptFile" : (action == "set-llm-ollama-host" ? "ollamaHost" : "ollamaModel");
+					const old = options[key];
+					options[key] = args.join(" ");
+					if (await changeLLM(activeLlm)) success();
+					else {
+						options[key] = old;
+						fail("invalid");
+					}
+				}
+				break;
+			case "set-tts":
+				if (args.length < 1) fail("args");
+				else if (await changeTTS(args.join(" "))) success();
+				else fail("invalid");
+				break;
+			case "set-tts-coqui-model":
+				if (args.length < 1) fail("args");
+				else {
+					const old = options.coquiModel;
+					options.coquiModel = args.join(" ");
+					if (await changeTTS(activeTts)) success();
+					else {
+						options.coquiModel = old;
+						fail("invalid");
+					}
+				}
+				break;
+			default:
+				fail("unknown");
+		}
+		// Unlock when we are done
+		locked = false;
 	});
 
 	socket.on("error", console.error);
@@ -62,6 +205,11 @@ let wake: Wake | undefined;
 let asr: ASR | undefined;
 let llm: LLM | undefined;
 let tts: TTS | undefined;
+
+let activeWake = options.wake;
+let activeAsr = options.asr;
+let activeLlm = options.llm;
+let activeTts = options.tts;
 
 function stop() {
 	wake?.interrupt();
@@ -87,14 +235,20 @@ async function changeWake(method: string) {
 				break;
 		}
 		if (!wake) throw new Error("Wake or trigger method is invalid!");
+		activeWake = method;
 
 		wake.on("wake", () => {
-			wake?.lock();
-			asr?.start();
+			// If any of the components are not available, dont' do anything
+			if (wake && asr && llm && tts) {
+				wake.lock();
+				asr.start();
+			}
 		});
+
+		return true;
 	} catch (err) {
 		console.error(err);
-		stop();
+		return false;
 	}
 }
 
@@ -117,15 +271,17 @@ async function changeASR(method: string) {
 				break;
 		}
 		if (!asr) throw new Error("ASR method is invalid!");
+		activeAsr = method;
 
 		// When the transcription result is ready, pass it to LLM
 		asr.on("result", result => {
 			console.log(result);
 			llm?.process(result);
 		});
+		return true;
 	} catch (err) {
 		console.error(err);
-		stop();
+		return false;
 	}
 }
 
@@ -148,6 +304,7 @@ async function changeLLM(method: string) {
 				break;
 		}
 		if (!llm) throw new Error("LLM method is invalid!");
+		activeLlm = method;
 
 		// LLM outputs, pass it to TTS
 		llm.on("partial", (word, ctx) => {
@@ -160,9 +317,10 @@ async function changeLLM(method: string) {
 		llm.on("result", () => {
 			wake?.unlock();
 		});
+		return true;
 	} catch (err) {
 		console.error(err);
-		stop();
+		return false;
 	}
 }
 
@@ -181,10 +339,12 @@ async function changeTTS(method: string) {
 				break;
 		}
 		if (!tts) throw new Error("TTS method is invalid!");
+		activeTts = method;
 
+		return true;
 	} catch (err) {
 		console.error(err);
-		stop();
+		return false;
 	}
 }
 
