@@ -7,23 +7,28 @@ import { LLM } from "./llm";
 import { Command } from "./cmd";
 import { TTS } from "./tts";
 
+const WAKE_METHODS = ["manual", "openwakeword"];
+const ASR_METHODS = ["whisper", "google"];
+const LLM_METHODS = ["deepseek", "ollama"];
+const TTS_METHODS = ["coqui", "google", "sapi4"];
+
 program
 	// wake word/trigger options
-	.addOption(new Option("--wake <method>", "method for waking up the voice assistant").default("manual").choices(["manual", "openwakeword"]))
+	.addOption(new Option("--wake <method>", "method for waking up the voice assistant").default("manual").choices(WAKE_METHODS))
 	.option("--wakeword <model>", "(only for --wake openwakeword) model for wake word in tflite or onnx format", "./wakewords/summatia.tflite")
 	// asr options
-	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(["whisper", "google"]))
+	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(ASR_METHODS))
 	.option("--whisper-model <model>", "(only for --asr whisper) model size for (faster) whisper", "base")
 	.option("--faster-whisper", "(only for --asr whisper) use faster whisper implementation")
 	// llm options
-	.addOption(new Option("--llm <method>", "method for large-language model function calling and response").default("deepseek").choices(["deepseek", "ollama"]))
+	.addOption(new Option("--llm <method>", "method for large-language model function calling and response").default("deepseek").choices(LLM_METHODS))
 	.option("--memory-length <number>", "amount of messages to store as context", "20")
 	.option("--memory-duration <number>", "amount of time (in seconds) to store the context", "60")
 	.option("--system-prompt-file <path>", "path to a text file containing the system prompt template", "system.txt")
 	.option("--ollama-host <url>", "(only for --llm ollama) host url of local ollama", "http://localhost:11434")
 	.option("--ollama-model <model>", "(only for --llm ollama) ollama model to use")
 	// tts options
-	.addOption(new Option("--tts <method>", "method for text-to-speech").default("coqui").choices(["coqui", "google", "sapi4"]))
+	.addOption(new Option("--tts <method>", "method for text-to-speech").default("coqui").choices(TTS_METHODS))
 	.option("--coqui-model <model>", "(only for --tts coqui) coqui tts model to use, or \"list\" to get a list of them", "tts_models/multilingual/multi-dataset/your_tts")
 	// misc/common options
 	.option("--python <path>", "path to a python virtual environment (venv) with all dependencies from requirements.txt installed")
@@ -72,6 +77,37 @@ server.on("connection", socket => {
 					wake.emit("wake");
 					success();
 				}
+				break;
+			// List methods
+			case "methods":
+				if (args.length < 1) fail("args");
+				else {
+					switch (args.join(" ")) {
+						case "wake":
+							success();
+							socket.send(`methods wake ${WAKE_METHODS.join(" ")}`);
+							break;
+						case "asr":
+							success();
+							socket.send(`methods asr ${ASR_METHODS.join(" ")}`);
+							break;
+						case "llm":
+							success();
+							socket.send(`methods llm ${LLM_METHODS.join(" ")}`);
+							break;
+						case "tts":
+							success();
+							socket.send(`methods tts ${TTS_METHODS.join(" ")}`);
+							break;
+						default:
+							fail("invalid");
+					}
+				}
+				break;
+			// Status of components
+			case "status":
+				success();
+				socket.send(`status ${!!wake} ${!!asr} ${!!llm} ${!!tts}`);
 				break;
 			// Set a new wake method
 			case "set-wake":
