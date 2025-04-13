@@ -36,6 +36,7 @@ manager = InputMan()
 wavs = Queue()
 
 def play(message: str):
+	print(f"Receiving: {message}")
 	uid, text = message.split(" ", 1)
 	wav = tts.tts(text=text)
 	wavs.put((uid, wav))

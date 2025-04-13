@@ -32,22 +32,28 @@ export class OllamaLLM extends LLM {
 	}
 
 	protected async chat(messages: TypedMessage[]) {
-		let res = await this.ollama.chat({ model: this.model, messages, stream: true });
-		let isChat = false, isThink = false, immThink = false;
-		let content = "";
-		for await (const part of res) {
-			content += part.message.content;
-			if (part.message.content.includes("\n")) {
-				const start = part.message.content.split("\n").pop()!.split(" ").shift()!;
-				if (start.startsWith("/chat")) isChat = true;
-				else if (start.startsWith("/") && Command.isValidCommand(start)) isChat = false;
-				else if (start.startsWith("<think>")) isThink = true;
-				else if (start.startsWith("</think>")) immThink = !(isThink = false);
+		try {
+			let res = await this.ollama.chat({ model: this.model, messages, stream: true });
+			let isChat = false, isThink = false, immThink = false;
+			let content = "";
+			for await (const part of res) {
+				content += part.message.content;
+				if (part.message.content.includes("\n")) {
+					const start = part.message.content.split("\n").pop()!.split(" ").shift()!;
+					if (start.startsWith("/chat")) isChat = true;
+					else if (start.startsWith("/") && Command.isValidCommand(start)) isChat = false;
+					else if (start.startsWith("<think>")) isThink = true;
+					else if (start.startsWith("</think>")) immThink = !(isThink = false);
+				}
+				this.emit("partial", part.message.content, isChat ? "chat" : (isThink || immThink ? "think" : "none"));
+				immThink = false;
 			}
-			this.emit("partial", part.message.content, isChat ? "chat" : (isThink || immThink ? "think" : "none"));
-			immThink = false;
+			return content;
+		} catch (err: any) {
+			if (typeof err.message == "string") return err.message;
+			else if (typeof err == "string") return err;
+			else return "An error has occured. Oops.";
 		}
-		return content;
 	}
 	
 	async process(input: string) {

@@ -64,7 +64,13 @@ def transcribe(message: str):
 		# Send transcription
 		print("result " + text)
 
+def stopper(message: str):
+	if message != "stop":
+		return
+	# TODO: somehow stop the microphone
+
 manager.add_listener(transcribe)
+manager.add_listener(stopper)
 print(f"{'Faster ' if FASTER else ''}Whisper is ready")
 
 # Join thread to keep program running until InputMan dies

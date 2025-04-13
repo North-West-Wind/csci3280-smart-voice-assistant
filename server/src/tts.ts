@@ -11,6 +11,12 @@ export abstract class TTS extends EventEmitter {
 	protected abstract speak(id: number, line: string): Promise<void>;
 
 	process(line: string) {
+		// in case line is multi-line, split it and call process again
+		const lines = line.split("\n").filter(li => !!li.trim());
+		if (lines.length > 1) {
+			lines.forEach(li => this.process(li));
+			return;
+		}
 		const id = this.id++;
 		this.lines.set(id, line);
 		this.speak(id, line).catch(err => {

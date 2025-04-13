@@ -10,7 +10,7 @@ class PlayCommand extends Command {
 	streamCounter = 0;
 
 	constructor() {
-		super("play", "Search and play a video (audio only) from YouTube. It's fine if you played the video played doesn't match the search terms.", [{ name: "keywords", description: "the keywords that will be used for YouTube search." }]);
+		super("play", "Search and play a video or song from YouTube. It's fine if the video played doesn't match the search terms.", [{ name: "keywords", description: "the keywords that will be used for YouTube search." }]);
 	}
 
 	async handle(message: string) {
@@ -20,10 +20,12 @@ class PlayCommand extends Command {
 		const id = this.streamCounter++;
 		const trans = transcoder(0.25);
 		trans
-			.input(ytdl(item.url, { filter: "audioonly" }))
+			.input(ytdl(item.url, { filter: "audioonly" }).on("error", console.error))
 			.on("error", () => transcoders.delete(id))
 			.pipe(speaker());
 		transcoders.set(id, trans);
+
+		console.log("/play", item.name);
 
 		return `Success! Now playing "${item.name}"`;
 	}

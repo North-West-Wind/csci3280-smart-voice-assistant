@@ -48,7 +48,7 @@ export class CoquiTTS extends TTS {
 					res();
 			});
 		});
-		this.shell?.send(line);
+		this.shell?.send(`${id} ${line}`);
 		await prom;
 	}
 

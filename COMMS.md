@@ -1,6 +1,10 @@
 # Communication
 This is an internal documentation of how to use Websocket to communicate between client (web UI) and server (backend program).
 
+## Changelog
+Current revision: 0.1
+- 0.1: Added `stop` trigger for stopping ASR forcefully.
+
 ## Common
 All messages are sent as strings.
 
@@ -18,6 +22,7 @@ All messages are sent as strings.
 ## Commands to server
 ### Program Trigger
 - `trigger`: Trigger the program to start listening.
+- `stop`: Forcefully stop ASR.
 ### Getters
 - `methods <type>`: Get the available methods for a component. `<type>` can be one of `wake`, `asr`, `llm`, `tts`. You will receive a `methods` message from the server.
 - `status`: Get the status of components.

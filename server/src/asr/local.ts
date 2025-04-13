@@ -3,13 +3,11 @@ import { ASR } from "../asr";
 
 export class LocalASR extends ASR {
 	private ready: boolean;
-	private running: boolean;
 	private shell?: PythonShell;
 
 	constructor(model: string, faster: boolean, device?: string, pythonPath?: string) {
 		super();
 		this.ready = false;
-		this.running = false;
 		PythonShell.runString("", { pythonPath, pythonOptions: ["--version"] }).then(output => {
 			if (!output[0] || typeof output[0] != "string") throw new Error("Invalid Python version. It must be Python 3 but <= 3.11");
 			const version = output[0].split(" ")[1].split(".").map(s => parseInt(s));
@@ -21,7 +19,7 @@ export class LocalASR extends ASR {
 				const type = arr.shift();
 				switch (type) {
 					case "result":
-						if (this.running)	this.emit("result", arr.join(" "));
+						this.emit("result", arr.join(" "));
 						break;
 					default:
 						console.log("stt: " + message);
@@ -39,12 +37,11 @@ export class LocalASR extends ASR {
 
 	start() {
 		if (!this.ready) throw new Error("LocalASR is not ready yet");
-		this.running = true;
 		this.shell?.send("start");
 	}
 
 	stop() {
-		this.running = false;
+		this.shell?.send("stop");
 	}
 
 	interrupt() {

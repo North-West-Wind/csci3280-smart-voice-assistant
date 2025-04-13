@@ -75,9 +75,17 @@ server.on("connection", socket => {
 		switch (action) {
 			// Trigger ASR to start listening
 			case "trigger":
-				if (!wake) fail("nowake")
+				if (!wake) fail("nowake");
 				else {
 					wake.emit("wake");
+					success();
+				}
+				break;
+			// Stop ASR from listening
+			case "stop":
+				if (!asr) fail("noasr");
+				else {
+					asr.stop();
 					success();
 				}
 				break;
