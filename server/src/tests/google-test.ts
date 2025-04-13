@@ -1,4 +1,4 @@
-import { GoogleASR } from "../src/asr/google";
+import { GoogleASR } from "../asr/google";
 
 const asr = new GoogleASR();
 

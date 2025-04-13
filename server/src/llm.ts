@@ -59,8 +59,15 @@ export abstract class LLM extends EventEmitter {
 				this.messages.push(message);
 				const responses = await Command.handleResponse(message.content);
 				if (!responses.length) {
-					this.messages.push({ role: "user", type: "res", content: "Response from system: You must use at least 1 command in your output! If you want to send something, use /chat" });
-					hasResponse = true;
+					// if no command is called, the LLM is broken. just assume this is /chat
+					// modify message content
+					message.content = `/chat ${message.content}`;
+					this.messages[this.messages.length - 1] = message;
+					// redo response, and directly put result to chats
+					const resp = await Command.handleResponse(message.content);
+					chats.push(resp[0].response);
+					this.emit("line", resp[0].response);
+					hasResponse = false;
 				} else {
 					const cmdOutputs = responses.filter(response => {
 						if (response.isRag) return true;

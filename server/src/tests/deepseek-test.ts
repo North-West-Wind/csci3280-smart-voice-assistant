@@ -1,6 +1,6 @@
 import "dotenv/config";
 import * as fs from "fs";
-import { DeepseekLLM } from "../src/llm/deepseek";
+import { DeepseekLLM } from "../llm/deepseek";
 
 fs.mkdirSync(__dirname + "/output", { recursive: true });
 

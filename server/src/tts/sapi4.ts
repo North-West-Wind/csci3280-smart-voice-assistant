@@ -1,5 +1,5 @@
 import { TTS } from "../tts";
-import { createTranscoder, speaker } from "../shared";
+import { transcoder, speaker } from "../shared";
 import axios from "axios";
 
 export class SAPI4TTS extends TTS {
@@ -16,11 +16,11 @@ export class SAPI4TTS extends TTS {
 			timeout: 20000,
 			responseType: "stream"
 		});
-		const transcoder = createTranscoder();
+		const trans = transcoder();
 		await new Promise<void>(res => {
-			transcoder.input(resp.data)
+			trans.input(resp.data)
 				.on("end", () => res())
-				.pipe(speaker);
+				.pipe(speaker());
 		});
 	}
 }

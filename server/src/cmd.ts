@@ -91,11 +91,11 @@ export abstract class Command {
 
 	private async handleWrapper(message: string): Promise<WrappedResponse> {
 		if (this.notRag) return { isRag: false, response: await this.handle(message) };
-		else return { isRag: true, response: `${this.responsePrefix(message)}${await this.handle(message)}` };
+		else return { isRag: true, response: `${this.responsePrefix()}${await this.handle(message)}` };
 	}
 
-	private responsePrefix(message: string) {
-		return `Response from command "/${this.name}${message ? " " + message : ""}":\n\n`;
+	private responsePrefix() {
+		return `Response from command "/${this.name}": `;
 	}
 
 	usage() {

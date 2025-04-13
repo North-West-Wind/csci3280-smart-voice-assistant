@@ -9,7 +9,7 @@ class RemindCommand extends Command {
 	async handle(message: string) {
 		const split = message.split("|");
 		if (split.length < 2) {
-			return "No duration specified, or cannot extract duration from command.";
+			return "Error! No duration specified, or cannot extract duration from command.";
 		} else {
 			const duration = split.shift()!;
 			const event = split.join("|");
@@ -18,9 +18,9 @@ class RemindCommand extends Command {
 				setTimeout(() => {
 					console.log(`Time's up for ${event}`);
 				}, ms);
-				return `Set reminder for "${event}" in ${prettyFormat(ms)}`;
+				return `Success! Set reminder for "${event}" in ${prettyFormat(ms)}`;
 			} else {
-				return `"${duration}" is not a duration in the required format.`;
+				return `Error! "${duration}" is not a duration in the required format.`;
 			}
 		}
 	}
