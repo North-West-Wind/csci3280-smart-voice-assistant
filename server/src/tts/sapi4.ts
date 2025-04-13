@@ -1,7 +1,6 @@
-import fetch from "node-fetch";
 import { TTS } from "../tts";
-import { Readable } from "stream";
-import { createTranscoder, speaker, userAgent } from "../shared";
+import { createTranscoder, speaker } from "../shared";
+import axios from "axios";
 
 export class SAPI4TTS extends TTS {
 	private url: string;
@@ -12,10 +11,14 @@ export class SAPI4TTS extends TTS {
 	}
 
 	protected async speak(_id: number, line: string) {
-		const resp = await fetch(this.url + encodeURIComponent(line), { headers: { "User-Agent": userAgent }, signal: AbortSignal.timeout(20000) });
+		const resp = await axios({
+			url: this.url + encodeURIComponent(line),
+			timeout: 20000,
+			responseType: "stream"
+		});
 		const transcoder = createTranscoder();
 		await new Promise<void>(res => {
-			transcoder.input(resp.body as Readable)
+			transcoder.input(resp.data)
 				.on("end", () => {
 					res();
 				})
