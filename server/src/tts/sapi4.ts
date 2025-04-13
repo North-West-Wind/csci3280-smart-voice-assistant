@@ -19,9 +19,7 @@ export class SAPI4TTS extends TTS {
 		const transcoder = createTranscoder();
 		await new Promise<void>(res => {
 			transcoder.input(resp.data)
-				.on("end", () => {
-					res();
-				})
+				.on("end", () => res())
 				.pipe(speaker);
 		});
 	}

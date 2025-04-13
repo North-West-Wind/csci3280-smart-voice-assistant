@@ -314,6 +314,10 @@ async function changeASR(method: string) {
 		if (!asr) throw new Error("ASR method is invalid!");
 		activeAsr = method;
 
+		asr.on("unsure", transcript => {
+			console.log("unsure:", transcript);
+		});
+
 		// When the transcription result is ready, pass it to LLM
 		asr.on("result", result => {
 			console.log(result);
@@ -351,13 +355,14 @@ async function changeLLM(method: string) {
 		// LLM outputs, pass it to TTS
 		llm.on("partial", (word, ctx) => {
 			//console.log(`${ctx}: "${word}"`);
-			if (ctx == "think") server.clients.forEach(socket => socket.send(`res ${word}`));
+			if (ctx == "chat") server.clients.forEach(socket => socket.send(`res ${word}`));
 		});
 		llm.on("line", line => {
 			tts?.process(line);
 		});
 		llm.on("result", () => {
 			llmFinished = true;
+			server.clients.forEach(socket => socket.send("res-done"));
 		});
 		return true;
 	} catch (err) {
