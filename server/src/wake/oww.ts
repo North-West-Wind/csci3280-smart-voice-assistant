@@ -9,9 +9,9 @@ export class OpenWakeWord extends Wake {
 		super();
 		this.ready = false;
 		PythonShell.runString("", { pythonPath, pythonOptions: ["--version"] }).then(output => {
-			if (!output[0] || typeof output[0] != "string") throw new Error("Invalid Python version. It must be Python 3 but <= 3.10");
+			if (!output[0] || typeof output[0] != "string") throw new Error("Invalid Python version. It must be Python 3 but <= 3.11");
 			const version = output[0].split(" ")[1].split(".").map(s => parseInt(s));
-			if (version[0] != 3 || version[1] > 10) throw new Error("Invalid Python version. It must be Python 3 but <= 3.10"); 
+			if (version[0] != 3 || version[1] > 11) throw new Error("Invalid Python version. It must be Python 3 but <= 3.11"); 
 
 			this.shell = new PythonShell("./python/wake.py", { pythonPath, mode: "text", pythonOptions: ["-u"], args: [model] });
 			this.shell.on("message", (message: string) => {

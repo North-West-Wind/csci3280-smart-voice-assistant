@@ -67,9 +67,5 @@ def transcribe(message: str):
 manager.add_listener(transcribe)
 print(f"{'Faster ' if FASTER else ''}Whisper is ready")
 
-# A loop to keep the program running
-while True:
-	try:
-		time.sleep(1)
-	except KeyboardInterrupt:
-		break
+# Join thread to keep program running until InputMan dies
+manager.join()

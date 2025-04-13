@@ -38,7 +38,11 @@ export class GoogleASR extends ASR {
 				else this.emit("unsure", data.results[0].alternatives[0].transcript);
 			});
 
-		this.mic.getAudioStream().pipe(recognizer);
+		this.mic.getAudioStream().on("silence", () => {
+			this.stop();
+		}).on("error", err => {
+			console.error(err);
+		}).pipe(recognizer);
 		this.mic.start();
 	}
 

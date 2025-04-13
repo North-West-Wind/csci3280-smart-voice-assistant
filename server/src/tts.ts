@@ -13,8 +13,11 @@ export abstract class TTS extends EventEmitter {
 	process(line: string) {
 		const id = this.id++;
 		this.lines.set(id, line);
-		this.speak(id, line).then(() => {
+		this.speak(id, line).catch(err => {
+			console.error(err);
+		}).finally(() => {
 			this.lines.delete(id);
+			this.emit("done", this.lines.size);
 		});
 	}
 

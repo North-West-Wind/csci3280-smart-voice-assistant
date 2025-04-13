@@ -27,13 +27,13 @@ export class CoquiTTS extends TTS {
 						this.emit("finish", parseInt(arr.join("")));
 						break;
 					default:
-						console.log("stt: " + message);
+						console.log("tts: " + message);
 				}
 			}).on("pythonError", err => {
 				this.ready = false;
 				throw err;
 			}).on("stderr", err => {
-				console.error("stt: " + err);
+				console.error("tts: " + err);
 			});
 
 			this.ready = true;

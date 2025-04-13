@@ -8,6 +8,7 @@ import torch
 from TTS.api import TTS
 
 from queue import Queue
+import time
 
 from common.reader import InputMan
 
@@ -35,19 +36,19 @@ manager = InputMan()
 wavs = Queue()
 
 def play(message: str):
-	uid, text = message.split(" ", 1)[0]
+	uid, text = message.split(" ", 1)
 	wav = tts.tts(text=text)
-	wavs.append((uid, wav))
+	wavs.put((uid, wav))
 
 manager.add_listener(play)
 
-# A loop to keep the program running
+# A loop to dequeue TTS wavs
 while True:
 	try:
 		time.sleep(1)
 		if not wavs.empty():
 			uid, wav = wavs.get()
-			sd.play(wav, 24000) # 24000Hz is the output of Coqui
+			sd.play(wav, 48000) # Sample rate may depend on the model
 			sd.wait()
 			print(f"finish {uid}")
 	except KeyboardInterrupt:

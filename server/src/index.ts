@@ -29,7 +29,10 @@ program
 	.option("--ollama-model <model>", "(only for --llm ollama) ollama model to use")
 	// tts options
 	.addOption(new Option("--tts <method>", "method for text-to-speech").default("coqui").choices(TTS_METHODS))
-	.option("--coqui-model <model>", "(only for --tts coqui) coqui tts model to use, or \"list\" to get a list of them", "tts_models/multilingual/multi-dataset/your_tts")
+	.option("--coqui-model <model>", "(only for --tts coqui) model to use coqui tts, or \"list\" to get a list of them", "tts_models/en/jenny/jenny")
+	.option("--sapi4-voice <name>", "(only for --tts sapi4) voice to use for sapi4 tts", "Mary")
+	.option("--sapi4-pitch <number>", "(only for --tts sapi4) pitch to use for sapi4 tts", "169")
+	.option("--sapi4-speed <number>", "(only for --tts sapi4) speed to use for sapi4 tts", "170")
 	// misc/common options
 	.option("--python <path>", "path to a python virtual environment (venv) with all dependencies from requirements.txt installed")
 	.option("--port <number>", "port number for the websocket server", "3280")
@@ -247,6 +250,8 @@ let activeAsr = options.asr;
 let activeLlm = options.llm;
 let activeTts = options.tts;
 
+let llmFinished = true;
+
 function stop() {
 	wake?.interrupt();
 	asr?.interrupt();
@@ -312,6 +317,7 @@ async function changeASR(method: string) {
 		// When the transcription result is ready, pass it to LLM
 		asr.on("result", result => {
 			console.log(result);
+			llmFinished = false;
 			llm?.process(result);
 		});
 		return true;
@@ -345,13 +351,13 @@ async function changeLLM(method: string) {
 		// LLM outputs, pass it to TTS
 		llm.on("partial", (word, ctx) => {
 			//console.log(`${ctx}: "${word}"`);
-			if (ctx == "think") process.stdout.write(word);
+			if (ctx == "think") server.clients.forEach(socket => socket.send(`res ${word}`));
 		});
-		//llm.on("line", line => {
-		//	console.log(line);
-		//});
+		llm.on("line", line => {
+			tts?.process(line);
+		});
 		llm.on("result", () => {
-			wake?.unlock();
+			llmFinished = true;
 		});
 		return true;
 	} catch (err) {
@@ -373,9 +379,18 @@ async function changeTTS(method: string) {
 				const { CoquiTTS } = await import("./tts/coqui.js");
 				tts = new CoquiTTS(options.coquiModel, options.forceDevice, options.python);
 				break;
+			case "sapi4":
+				const { SAPI4TTS } = await import("./tts/sapi4.js");
+				tts = new SAPI4TTS(options.sapi4Voice, options.sapi4Pitch, options.sapi4Speed);
+				break;
 		}
 		if (!tts) throw new Error("TTS method is invalid!");
 		activeTts = method;
+
+		tts.on("done", remaining => {
+			if (remaining == 0 && llmFinished)
+				wake?.unlock();
+		});
 
 		return true;
 	} catch (err) {

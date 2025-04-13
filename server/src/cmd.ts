@@ -63,7 +63,9 @@ export abstract class Command {
 		const commands: Command[] = [
 			(await import("./cmd/chat.js")).default.default,
 			// (await import("./cmd/lookup.js")).default.default, // lookup is too dangerous as it returns a lot of texts and can cost a lot on deepseek
-			(await import("./cmd/remind.js")).default.default
+			(await import("./cmd/remind.js")).default.default,
+			(await import("./cmd/media.js")).play,
+			(await import("./cmd/media.js")).stop,
 		];
 		commands.forEach(cmd => this.commands.set(cmd.name, cmd));
 	}

@@ -11,9 +11,9 @@ export class LocalASR extends ASR {
 		this.ready = false;
 		this.running = false;
 		PythonShell.runString("", { pythonPath, pythonOptions: ["--version"] }).then(output => {
-			if (!output[0] || typeof output[0] != "string") throw new Error("Invalid Python version. It must be Python 3 but <= 3.10");
+			if (!output[0] || typeof output[0] != "string") throw new Error("Invalid Python version. It must be Python 3 but <= 3.11");
 			const version = output[0].split(" ")[1].split(".").map(s => parseInt(s));
-			if (version[0] != 3 || version[1] > 10) throw new Error("Invalid Python version. It must be Python 3 but <= 3.10"); 
+			if (version[0] != 3 || version[1] > 11) throw new Error("Invalid Python version. It must be Python 3 but <= 3.11"); 
 
 			this.shell = new PythonShell("./python/stt.py", { pythonPath, mode: "text", pythonOptions: ["-u"], args: [faster ? "faster" : "n", model].concat(device ? [device] : []) });
 			this.shell.on("message", (message: string) => {

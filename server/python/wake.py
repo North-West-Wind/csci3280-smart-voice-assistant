@@ -49,6 +49,7 @@ def handle(message: str):
 		print("Locked")
 	elif message == "unlock":
 		locked = False
+		print("Unlocked")
 
 manager.add_listener(handle)
 

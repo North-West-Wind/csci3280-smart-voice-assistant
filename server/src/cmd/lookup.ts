@@ -1,6 +1,7 @@
 import { OrganicResult, search } from "google-sr";
 import { convert } from "html-to-text";
 import { Command } from "../cmd";
+import { userAgent } from "../shared";
 
 class LookupCommand extends Command {
 	constructor() {
@@ -21,7 +22,7 @@ class LookupCommand extends Command {
 		for (const entry of results) {
 			if (entry.link) {
 				const { extract } = await import("@extractus/article-extractor");
-				const data = await extract(entry.link, {}, { headers: { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" } });
+				const data = await extract(entry.link, {}, { headers: { "User-Agent": userAgent } });
 				if (data?.content) {
 					converted = convert(data.content, {
 						wordwrap: false,

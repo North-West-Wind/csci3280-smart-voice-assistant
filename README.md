@@ -4,8 +4,9 @@ The smart voice assistant project for CSCI3280. This is an application that runs
 ## Server Setup
 ### Prerequisite
 You need the following installed:
-- Node.js 20
-- Python 3.11
+- [Node.js 20](https://nodejs.org/en/download)
+- [Python 3.11](https://www.python.org/downloads/)
+- [FFMpeg](https://ffmpeg.org/download.html)
 
 ### Install
 After that, change the current directory to `server` and install the required packages:
