@@ -2,7 +2,7 @@ import { Command } from "../cmd";
 
 class ChatCommand extends Command {
 	constructor() {
-		super("chat", "Send a text message.", [{ name: "message", description: "the message you want to send." }], true);
+		super("chat", "Send a text message.", { message: "the message you want to send." }, true);
 	}
 
 	handle(message: string) {
@@ -10,4 +10,6 @@ class ChatCommand extends Command {
 	}
 }
 
-export default new ChatCommand();
+const chat = new ChatCommand();
+
+export { chat }

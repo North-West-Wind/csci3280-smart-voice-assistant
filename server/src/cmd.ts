@@ -61,9 +61,10 @@ export abstract class Command {
 
 	static async init() {
 		const commands: Command[] = [
-			(await import("./cmd/chat.js")).default.default,
+			(await import("./cmd/chat.js")).chat,
 			// (await import("./cmd/lookup.js")).default.default, // lookup is too dangerous as it returns a lot of texts and can cost a lot on deepseek
-			(await import("./cmd/remind.js")).default.default,
+			(await import("./cmd/wiki.js")).wiki,
+			(await import("./cmd/remind.js")).remind,
 			(await import("./cmd/media.js")).play,
 			(await import("./cmd/media.js")).stop,
 		];
@@ -80,10 +81,12 @@ export abstract class Command {
 	readonly args: Argument[];
 	private notRag: boolean;
 
-	constructor(name: string, description: string, args: Argument[], notRag = false) {
+	constructor(name: string, description: string, args: Record<string, string>, notRag = false) {
 		this.name = name;
 		this.description = description.trim();
-		this.args = args;
+		this.args = [];
+		for (const key in args)
+			this.args.push({ name: key, description: args[key] });
 		this.notRag = notRag;
 	}
 
@@ -108,8 +111,8 @@ export abstract class Command {
 				names.push(`{${arg.name}}`);
 				descs.push(`Replace {${arg.name}} with ${arg.description}${arg.description.endsWith(".") ? "" : "."}`);
 			});
-			args = " " + names.join(" | ");
-			argsDetail = " " + descs.join(" ") + (this.args.length > 1 ? " Seperate the arguments with \"|\"." : "");
+			args = " " + names.join(" ");
+			argsDetail = " " + descs.join(" ");
 		}
 		return `/${this.name}${args} - ${this.description}${this.description.endsWith(".") ? "" : "."}${argsDetail}`
 	}

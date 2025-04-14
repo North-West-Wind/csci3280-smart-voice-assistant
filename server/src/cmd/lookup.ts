@@ -5,7 +5,7 @@ import { userAgent } from "../shared";
 
 class LookupCommand extends Command {
 	constructor() {
-		super("lookup", "Use a search engine to lookup information.", [{ name: "query", description: "the query (10 words maximum) to be used for searching." }]);
+		super("lookup", "Use a search engine to lookup information.", { query: "the query (10 words maximum) to be used for searching." });
 	}
 
 	async handle(message: string) {

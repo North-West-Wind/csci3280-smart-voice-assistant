@@ -1,29 +1,39 @@
 import { prettyFormat } from "@imranbarbhuiya/duration";
 import { Command } from "../cmd";
+import { sharedTTS, sharedWake } from "../shared";
 
 class RemindCommand extends Command {
 	constructor() {
-		super("remind", "Set a reminder for an event.", [{ name: "time", description: "the duration until the event happens." }, { name: "message", description: "the reminder message" }]);
+		super("remind", "Set a reminder for an event.", { time: "the duration until the event happens.", message: "the reminder message" });
 	}
 
 	async handle(message: string) {
-		const split = message.split("|");
-		if (split.length < 2) {
-			return "Error! No duration specified, or cannot extract duration from command.";
-		} else {
-			const duration = split.shift()!;
-			const event = split.join("|");
-			const ms = (await import("parse-duration")).default(duration);
-			if (ms) {
-				setTimeout(() => {
-					console.log(`Time's up for ${event}`);
-				}, ms);
-				return `Success! Set reminder for "${event}" in ${prettyFormat(ms)}`;
-			} else {
-				return `Error! "${duration}" is not a duration in the required format.`;
+		const parse = (await import("parse-duration")).default;
+		// find max length of args that allows duration parsing
+		const split = message.split(" ");
+		let durLen = 0;
+		let duration = "";
+		let actualDur: number | undefined;
+		for (let ii = 0; ii < split.length; ii++) {
+			const word = split[ii];
+			duration += " " + word;
+			const ms = parse(duration);
+			if (ms !== null) {
+				durLen = ii + 1;
+				actualDur = ms;
 			}
 		}
+		if (actualDur === undefined) return "Error! Could not extract duration from command.";
+		let event = split.slice(durLen).join(" ").trim();
+		setTimeout(() => {
+			sharedWake()?.lock();
+			sharedTTS()?.process(event);
+		}, actualDur);
+		if (!event) return `Success! The timer will finish in ${prettyFormat(actualDur)}.`;
+		return `Success! The timer for "${event}" will finish in ${prettyFormat(actualDur)}`;
 	}
 }
 
-export default new RemindCommand();
+const remind = new RemindCommand();
+
+export { remind };

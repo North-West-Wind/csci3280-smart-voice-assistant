@@ -10,7 +10,7 @@ class PlayCommand extends Command {
 	streamCounter = 0;
 
 	constructor() {
-		super("play", "Search and play a video or song from YouTube. It's fine if the video played doesn't match the search terms.", [{ name: "keywords", description: "the keywords that will be used for YouTube search." }]);
+		super("play", "Search and play a video or song from YouTube. It's fine if the video played doesn't match the search terms.", { keywords: "the keywords that will be used for YouTube search." });
 	}
 
 	async handle(message: string) {
@@ -33,7 +33,7 @@ class PlayCommand extends Command {
 
 class StopCommand extends Command {
 	constructor() {
-		super("stop", "Stop all the media that is playing.", []);
+		super("stop", "Stop all the media that is playing.", {});
 	}
 
 	handle() {

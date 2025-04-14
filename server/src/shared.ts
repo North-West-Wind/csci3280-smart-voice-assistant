@@ -1,5 +1,7 @@
 import ffmpeg from "fluent-ffmpeg";
 import Speaker from "speaker";
+import { TTS } from "./tts";
+import { Wake } from "./wake";
 
 const speaker = () => new Speaker({
 	channels: 2,
@@ -16,5 +18,18 @@ function transcoder(volume = 1) {
 }
 
 const userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
+const endPunctuations = [".", "!", "?"];
 
-export { speaker, transcoder, userAgent };
+let wakeStore: Wake | null = null;
+function sharedWake(wake?: Wake | null) {
+	if (wake !== undefined) wakeStore = wake;
+	return wakeStore;
+}
+
+let ttsStore: TTS | null = null;
+function sharedTTS(tts?: TTS | null) {
+	if (tts !== undefined) ttsStore = tts;
+	return ttsStore;
+}
+
+export { speaker, transcoder, userAgent, endPunctuations, sharedWake, sharedTTS };
