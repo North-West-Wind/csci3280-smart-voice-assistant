@@ -6,11 +6,12 @@ import { Option, program } from "commander";
 import { LLM } from "./llm";
 import { Command } from "./cmd";
 import { TTS } from "./tts";
+import { sharedTTS, sharedWake } from "./shared";
 
 const WAKE_METHODS = ["manual", "openwakeword"];
 const ASR_METHODS = ["whisper", "google"];
 const LLM_METHODS = ["deepseek", "ollama"];
-const TTS_METHODS = ["coqui", "google", "sapi4"];
+const TTS_METHODS = ["coqui", "sapi4"];
 
 program
 	// wake word/trigger options
@@ -20,6 +21,7 @@ program
 	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(ASR_METHODS))
 	.option("--whisper-model <model>", "(only for --asr whisper) model size for (faster) whisper", "base")
 	.option("--faster-whisper", "(only for --asr whisper) use faster whisper implementation")
+	.addOption(new Option("--whisper-device <name>", "(only for --asr whisper) force-use this device for running whisper").choices(["cuda", "cpu"]))
 	// llm options
 	.addOption(new Option("--llm <method>", "method for large-language model function calling and response").default("deepseek").choices(LLM_METHODS))
 	.option("--memory-length <number>", "amount of messages to store as context", "20")
@@ -30,6 +32,7 @@ program
 	// tts options
 	.addOption(new Option("--tts <method>", "method for text-to-speech").default("coqui").choices(TTS_METHODS))
 	.option("--coqui-model <model>", "(only for --tts coqui) model to use coqui tts, or \"list\" to get a list of them", "tts_models/en/jenny/jenny")
+	.addOption(new Option("--coqui-device <name>", "(only for --tts coqui) force-use this device for running coqui").default("cpu").choices(["cuda", "cpu"]))
 	.option("--sapi4-voice <name>", "(only for --tts sapi4) voice to use for sapi4 tts", "Mary")
 	.option("--sapi4-pitch <number>", "(only for --tts sapi4) pitch to use for sapi4 tts", "169")
 	.option("--sapi4-speed <number>", "(only for --tts sapi4) speed to use for sapi4 tts", "170")
@@ -86,6 +89,14 @@ server.on("connection", socket => {
 				if (!asr) fail("noasr");
 				else {
 					asr.stop();
+					success();
+				}
+				break;
+			// Manual input LLM
+			case "manual-llm":
+				if (!llm) fail("nollm");
+				else {
+					llm.process(args.join(" "));
 					success();
 				}
 				break;
@@ -272,6 +283,7 @@ async function changeWake(method: string) {
 		if (wake) {
 			wake.interrupt();
 			wake = undefined;
+			sharedWake(null);
 		}
 		switch (method) {
 			case "openwakeword":
@@ -285,6 +297,7 @@ async function changeWake(method: string) {
 		}
 		if (!wake) throw new Error("Wake or trigger method is invalid!");
 		activeWake = method;
+		sharedWake(wake);
 
 		wake.on("wake", () => {
 			// If any of the components are not available, dont' do anything
@@ -312,7 +325,7 @@ async function changeASR(method: string) {
 		switch (method) {
 			case "whisper":
 				const { LocalASR } = await import("./asr/local.js");
-				asr = new LocalASR(options.whisperModel, options.fasterWhisper, options.forceDevice, options.python);
+				asr = new LocalASR(options.whisperModel, options.fasterWhisper, options.whisperDevice || options.forceDevice, options.python);
 				break;
 			case "google":
 				const { GoogleASR } = await import("./asr/google.js");
@@ -362,7 +375,6 @@ async function changeLLM(method: string) {
 
 		// LLM outputs, pass it to TTS
 		llm.on("partial", (word, ctx) => {
-			//console.log(`${ctx}: "${word}"`);
 			if (ctx == "chat") server.clients.forEach(socket => socket.send(`res ${word}`));
 		});
 		llm.on("line", line => {
@@ -385,12 +397,13 @@ async function changeTTS(method: string) {
 		if (tts) {
 			tts.interrupt();
 			tts = undefined;
+			sharedTTS(null);
 		}
 
 		switch (method) {
 			case "coqui":
 				const { CoquiTTS } = await import("./tts/coqui.js");
-				tts = new CoquiTTS(options.coquiModel, options.forceDevice, options.python);
+				tts = new CoquiTTS(options.coquiModel, options.coquiDevice || options.forceDevice, options.python);
 				break;
 			case "sapi4":
 				const { SAPI4TTS } = await import("./tts/sapi4.js");
@@ -399,6 +412,7 @@ async function changeTTS(method: string) {
 		}
 		if (!tts) throw new Error("TTS method is invalid!");
 		activeTts = method;
+		sharedTTS(tts);
 
 		tts.on("done", remaining => {
 			if (remaining == 0 && llmFinished)
