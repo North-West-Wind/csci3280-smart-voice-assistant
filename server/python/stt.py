@@ -18,9 +18,10 @@ if len(sys.argv) < 3:
 
 FASTER = sys.argv[1] == "faster"
 MODEL = sys.argv[2]
+THRESHOLD = float(sys.argv[3])
 DEVICE = ""
-if len(sys.argv) >= 4:
-	DEVICE = sys.argv[3]
+if len(sys.argv) >= 5:
+	DEVICE = sys.argv[4]
 	if DEVICE != "cpu" and DEVICE != "cuda":
 		DEVICE = ""
 if DEVICE == "":
@@ -30,7 +31,7 @@ if DEVICE == "":
 r = sr.Recognizer()
 r.dynamic_energy_threshold = False
 r.energy_threshold = 1000
-r.pause_threshold = 1.5
+r.pause_threshold = THRESHOLD
 
 # Initialize (faster) whisper model
 model = None

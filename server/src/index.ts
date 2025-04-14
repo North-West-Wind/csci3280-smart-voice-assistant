@@ -19,6 +19,7 @@ program
 	.option("--wakeword <model>", "(only for --wake openwakeword) model for wake word in tflite or onnx format", "./wakewords/summatia.tflite")
 	// asr options
 	.addOption(new Option("--asr <method>", "method for automatic speech recognition").default("whisper").choices(ASR_METHODS))
+	.option("--silence-threshold <number>", "seconds of silence before asr stop listening", "1.5")
 	.option("--whisper-model <model>", "(only for --asr whisper) model size for (faster) whisper", "base")
 	.option("--faster-whisper", "(only for --asr whisper) use faster whisper implementation")
 	.addOption(new Option("--whisper-device <name>", "(only for --asr whisper) force-use this device for running whisper").choices(["cuda", "cpu"]))
@@ -325,11 +326,11 @@ async function changeASR(method: string) {
 		switch (method) {
 			case "whisper":
 				const { LocalASR } = await import("./asr/local.js");
-				asr = new LocalASR(options.whisperModel, options.fasterWhisper, options.whisperDevice || options.forceDevice, options.python);
+				asr = new LocalASR(options.whisperModel, options.fasterWhisper, parseFloat(options.silenceThreshold), options.whisperDevice || options.forceDevice, options.python);
 				break;
 			case "google":
 				const { GoogleASR } = await import("./asr/google.js");
-				asr = new GoogleASR();
+				asr = new GoogleASR(parseFloat(options.silenceThreshold));
 				break;
 		}
 		if (!asr) throw new Error("ASR method is invalid!");
