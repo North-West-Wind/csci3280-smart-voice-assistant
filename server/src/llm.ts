@@ -15,6 +15,7 @@ export abstract class LLM extends EventEmitter {
 	private memory: number;
 	private duration: number;
 	private systemPrompt: Message;
+	private prefixMessages: Message[];
 	// runtime
 	private messages: TypedMessage[] = [];
 	private userMessages = 0;
@@ -32,6 +33,7 @@ export abstract class LLM extends EventEmitter {
 		if (!fs.existsSync(systemPromptFile)) throw new Error("system prompt file doesn't exist");
 		const system = fs.readFileSync(systemPromptFile, { encoding: "utf8" }).replace(/{commands}/g, Command.generateSystemInstruction());
 		this.systemPrompt = { role: "system", content: system };
+		this.prefixMessages = [this.systemPrompt, { role: "user", content: "Ping!" }, { role: "assistant", content: "/chat Pong!" }];
 	}
 
 	protected abstract chat(messages: TypedMessage[]): Promise<string>;
@@ -54,7 +56,7 @@ export abstract class LLM extends EventEmitter {
 			do {
 				// don't forget in the middle of conversation!
 				if (this.forgetTimeout) this.forgetTimeout.refresh();
-				const message: Message = { role: "assistant", content: await this.chat([this.systemPrompt].concat(this.messages)) };
+				const message: Message = { role: "assistant", content: await this.chat(this.prefixMessages.concat(this.messages)) };
 				//console.log(message.content);
 				this.messages.push(message);
 				const responses = await Command.handleResponse(message.content);
@@ -72,7 +74,6 @@ export abstract class LLM extends EventEmitter {
 					const cmdOutputs = responses.filter(response => {
 						if (response.isRag) return true;
 						chats.push(response.response);
-						this.emit("line", response.response);
 						return false;
 					});
 					if (cmdOutputs.length) {
