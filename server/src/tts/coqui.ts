@@ -3,12 +3,12 @@ import { TTS } from "../tts";
 
 export declare interface CoquiTTS {
 	on(event: "done", listener: (remaning: number) => void): this;
-	on(event: "finish", listener: (id: number) => void): this;
 }
 
 export class CoquiTTS extends TTS {
 	private ready: boolean;
 	private shell?: PythonShell;
+	private processing = new Set<number>();
 
 	constructor(model: string, device?: string, pythonPath?: string) {
 		super();
@@ -24,7 +24,7 @@ export class CoquiTTS extends TTS {
 				const type = arr.shift();
 				switch (type) {
 					case "finish":
-						this.emit("finish", parseInt(arr.join("")));
+						this.processing.add(parseInt(arr.join("")));
 						break;
 					default:
 						console.log("tts: " + message);
@@ -42,11 +42,9 @@ export class CoquiTTS extends TTS {
 
 	protected async speak(id: number, line: string) {
 		if (!this.ready) throw new Error("CoquiTTS is not ready yet");
-		const prom = new Promise<void>(res => {
-			this.on("finish", uid => {
-				if (uid == id)
-					res();
-			});
+		const prom = new Promise<void>(async res => {
+			while (this.processing.has(id))
+				await this.wait(100);
 		});
 		this.shell?.send(`${id} ${line}`);
 		await prom;
@@ -55,5 +53,9 @@ export class CoquiTTS extends TTS {
 	interrupt() {
 		super.interrupt();
 		this.shell?.kill("SIGINT");
+	}
+
+	private async wait(ms: number) {
+		return new Promise<void>(res => setTimeout(res, ms));
 	}
 }

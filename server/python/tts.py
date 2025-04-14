@@ -8,6 +8,7 @@ import torch
 from TTS.api import TTS
 
 from queue import Queue
+import threading
 import time
 
 from common.reader import InputMan
@@ -33,20 +34,38 @@ if DEVICE == "":
 tts = TTS(MODEL).to(DEVICE)
 
 manager = InputMan()
+lock = threading.Lock()
+running = True
+inputs = Queue()
 wavs = Queue()
 
 def play(message: str):
-	print(f"Receiving: {message}")
-	uid, text = message.split(" ", 1)
-	wav = tts.tts(text=text)
-	wavs.put((uid, wav))
+	with lock:
+		uid, text = message.split(" ", 1)
+		inputs.put((uid, text))
 
 manager.add_listener(play)
+
+# Threaded wav processing
+def process_inputs():
+	while True:
+		time.sleep(0.1)
+		if not inputs.empty():
+			uid, text = inputs.get()
+			if not text.strip():
+				print(f"finish {uid}")
+				continue
+			wav = tts.tts(text=text)
+			wavs.put((uid, wav))
+
+thread = threading.Thread(target=process_inputs)
+thread.daemon = True
+thread.start()
 
 # A loop to dequeue TTS wavs
 while True:
 	try:
-		time.sleep(1)
+		time.sleep(0.1)
 		if not wavs.empty():
 			uid, wav = wavs.get()
 			sd.play(wav, 48000) # Sample rate may depend on the model
