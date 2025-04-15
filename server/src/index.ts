@@ -336,16 +336,21 @@ async function changeASR(method: string) {
 		if (!asr) throw new Error("ASR method is invalid!");
 		activeAsr = method;
 
+		asr.on("start", () => {
+			server.clients.forEach(socket => socket.send("asr-start"));
+		});
+
 		asr.on("unsure", transcript => {
 			console.log("unsure:", transcript);
 		});
 
 		// When the transcription result is ready, pass it to LLM
 		asr.on("result", result => {
-			console.log(result);
+			server.clients.forEach(socket => socket.send("asr-done " + result));
 			llmFinished = false;
 			llm?.process(result);
 		});
+
 		return true;
 	} catch (err) {
 		console.error(err);
@@ -415,9 +420,19 @@ async function changeTTS(method: string) {
 		activeTts = method;
 		sharedTTS(tts);
 
+		tts.on("start", () => {
+			server.clients.forEach(socket => socket.send("tts-start"));
+		});
+
+		tts.on("line", line => {
+			server.clients.forEach(socket => socket.send("tts-line " + line));
+		});
+
 		tts.on("done", remaining => {
-			if (remaining == 0 && llmFinished)
+			if (remaining == 0 && llmFinished) {
+				server.clients.forEach(socket => socket.send("tts-done"));
 				wake?.unlock();
+			}
 		});
 
 		return true;

@@ -1,11 +1,14 @@
 import { EventEmitter } from "stream";
 
 export declare interface TTS {
+	on(event: "start", listener: () => void): this;
+	on(event: "line", listener: (line: string) => void): this;
 	on(event: "done", listener: (remaning: number) => void): this;
 }
 
 export abstract class TTS extends EventEmitter {
 	private id = 0;
+	private speaking = false;
 	protected lines = new Map<number, string>();
 
 	protected abstract speak(id: number, line: string): Promise<void>;
@@ -17,6 +20,10 @@ export abstract class TTS extends EventEmitter {
 			lines.forEach(li => this.process(li));
 			return;
 		}
+		if (!this.speaking) {
+			this.speaking = true;
+			this.emit("start");
+		}
 		const id = this.id++;
 		this.lines.set(id, line);
 		this.speak(id, line).catch(err => {
@@ -24,6 +31,7 @@ export abstract class TTS extends EventEmitter {
 		}).finally(() => {
 			this.lines.delete(id);
 			this.emit("done", this.lines.size);
+			if (!this.lines.size) this.speaking = false;
 		});
 	}
 

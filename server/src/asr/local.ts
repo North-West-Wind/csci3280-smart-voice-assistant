@@ -20,6 +20,7 @@ export class LocalASR extends ASR {
 				switch (type) {
 					case "result":
 						this.emit("result", arr.join(" "));
+						this.emit("stop");
 						break;
 					default:
 						console.log("stt: " + message);
@@ -38,6 +39,7 @@ export class LocalASR extends ASR {
 	start() {
 		if (!this.ready) throw new Error("LocalASR is not ready yet");
 		this.shell?.send("start");
+		this.emit("start");
 	}
 
 	stop() {

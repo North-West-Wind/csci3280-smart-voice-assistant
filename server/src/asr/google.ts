@@ -6,7 +6,6 @@ export class GoogleASR extends ASR {
 	private client: SpeechClient;
 	private threshold: number;
 	private mic?: any;
-	private transcribing = false;
 	private transcripts: string[] = [];
 
 	constructor(threshold: number) {
@@ -37,7 +36,6 @@ export class GoogleASR extends ASR {
 			interimResults: true
 		};
 
-		this.transcribing = true;
 		this.transcripts = [];
 
 		const recognizer = this.client
@@ -58,11 +56,13 @@ export class GoogleASR extends ASR {
 			console.error(err);
 		}).pipe(recognizer);
 		this.mic.start();
+		this.emit("start");
 	}
 
 	stop() {
 		this.mic?.stop();
-		if (this.transcribing) this.emit("result", this.transcripts.join(". "));
+		this.emit("result", this.transcripts.join(". "));
+		this.emit("stop");
 	}
 
 	interrupt() {

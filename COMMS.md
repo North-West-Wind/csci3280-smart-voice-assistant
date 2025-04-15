@@ -2,16 +2,23 @@
 This is an internal documentation of how to use Websocket to communicate between client (web UI) and server (backend program).
 
 ## Changelog
-Current revision: 0.1
+Current revision: 0.3
 - 0.1: Added `stop` trigger for stopping ASR forcefully.
+- 0.2: Added `manual-llm` command for directly testing LLM input, bypassing ASR.
+- 0.3: Added `asr-start/done`, `tts-start/line/done`. Renamed `rec` to `asr`.
 
 ## Common
 All messages are sent as strings.
 
 ## Messages from server
-- `rec <level>`: Audio loudness when recording. This will be a continuous stream when ASR is running. `<level>` is linear between 0 and 1.
+- `asr <level>`: Audio loudness when recording. This will be a continuous stream when ASR is running. `<level>` is linear between 0 and 1.
+- `asr-start`: When recording starts.
+- `asr-done <transcript>`: When recording stops. Returns the transcript.
 - `res <token>`: LLM streaming responses. Client can simply stream this output by appending the token to the same string.
 - `res-done`: An event that will be sent when LLM finished streaming.
+- `tts-start`: When TTS response starts.
+- `tts-line <line>`: When a line is being spoken.
+- `tts-done`: When TTS response stops.
 - `status <wake> <asr> <llm> <tts>`: Status of components. Each argument is either `true` or `false`.
 - `methods <type> <names...>`: Available methods for a component. `<type>` will be one of `wake`, `asr`, `llm`, `tts`.
 - `success`: Indicates a command from the client has succeeded.
@@ -23,6 +30,7 @@ All messages are sent as strings.
 ### Program Trigger
 - `trigger`: Trigger the program to start listening.
 - `stop`: Forcefully stop ASR.
+- `manual-llm`: Manually input to the LLM, bypassing waking up and ASR.
 ### Getters
 - `methods <type>`: Get the available methods for a component. `<type>` can be one of `wake`, `asr`, `llm`, `tts`. You will receive a `methods` message from the server.
 - `status`: Get the status of components.

@@ -1,9 +1,6 @@
 import { PythonShell } from "python-shell";
 import { TTS } from "../tts";
-
-export declare interface CoquiTTS {
-	on(event: "done", listener: (remaning: number) => void): this;
-}
+import { wait } from "../shared";
 
 export class CoquiTTS extends TTS {
 	private ready: boolean;
@@ -44,8 +41,10 @@ export class CoquiTTS extends TTS {
 		if (!this.ready) throw new Error("CoquiTTS is not ready yet");
 		const prom = new Promise<void>(async res => {
 			while (this.processing.has(id))
-				await this.wait(100);
+				await wait(100);
+			res();
 		});
+		this.emit("line", line);
 		this.shell?.send(`${id} ${line}`);
 		await prom;
 	}
@@ -53,9 +52,5 @@ export class CoquiTTS extends TTS {
 	interrupt() {
 		super.interrupt();
 		this.shell?.kill("SIGINT");
-	}
-
-	private async wait(ms: number) {
-		return new Promise<void>(res => setTimeout(res, ms));
 	}
 }

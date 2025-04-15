@@ -32,4 +32,8 @@ function sharedTTS(tts?: TTS | null) {
 	return ttsStore;
 }
 
-export { speaker, transcoder, userAgent, endPunctuations, sharedWake, sharedTTS };
+async function wait(ms: number) {
+	return new Promise<void>(res => setTimeout(res, ms));
+}
+
+export { speaker, transcoder, userAgent, endPunctuations, sharedWake, sharedTTS, wait };
