@@ -6,6 +6,7 @@ Current revision: 0.3
 - 0.1: Added `stop` trigger for stopping ASR forcefully.
 - 0.2: Added `manual-llm` command for directly testing LLM input, bypassing ASR.
 - 0.3: Added `asr-start/done`, `tts-start/line/done`. Renamed `rec` to `asr`.
+- 0.4: Added `config` message and command.
 
 ## Common
 All messages are sent as strings.
@@ -21,6 +22,7 @@ All messages are sent as strings.
 - `tts-done`: When TTS response stops.
 - `status <wake> <asr> <llm> <tts>`: Status of components. Each argument is either `true` or `false`.
 - `methods <type> <names...>`: Available methods for a component. `<type>` will be one of `wake`, `asr`, `llm`, `tts`.
+- `config <json>`: Configuration of backend. Returns the config object in `index.ts` L47.
 - `success`: Indicates a command from the client has succeeded.
 - `fail <reason>`: Indicates a command from the client has failed.
 
@@ -34,6 +36,7 @@ All messages are sent as strings.
 ### Getters
 - `methods <type>`: Get the available methods for a component. `<type>` can be one of `wake`, `asr`, `llm`, `tts`. You will receive a `methods` message from the server.
 - `status`: Get the status of components.
+- `config`: Get the configuration of backend. You will receive a `config <json>` response.
 ### Config
 - `set-wake <method>`: Change the wake/trigger method. `<method>` can be `openwakeword` or `manual` (may change, get a list with `methods wake`).
 - `set-wake-word <path>`: Change the wake word for `openwakeword`. `<path>` is a path to a .onnx or .tflite file.

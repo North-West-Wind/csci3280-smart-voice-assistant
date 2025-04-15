@@ -33,7 +33,7 @@ program
 	// tts options
 	.addOption(new Option("--tts <method>", "method for text-to-speech").default("coqui").choices(TTS_METHODS))
 	.option("--coqui-model <model>", "(only for --tts coqui) model to use coqui tts, or \"list\" to get a list of them", "tts_models/en/jenny/jenny")
-	.addOption(new Option("--coqui-device <name>", "(only for --tts coqui) force-use this device for running coqui").default("cpu").choices(["cuda", "cpu"]))
+	.addOption(new Option("--coqui-device <name>", "(only for --tts coqui) force-use this device for running coqui").choices(["cuda", "cpu"]))
 	.option("--sapi4-voice <name>", "(only for --tts sapi4) voice to use for sapi4 tts", "Mary")
 	.option("--sapi4-pitch <number>", "(only for --tts sapi4) pitch to use for sapi4 tts", "169")
 	.option("--sapi4-speed <number>", "(only for --tts sapi4) speed to use for sapi4 tts", "170")
@@ -45,17 +45,54 @@ program
 program.parse();
 
 const options = program.opts();
-
-const DEFAULT_PORT = 3280;
-let port = parseInt(options.port || process.env.PORT || DEFAULT_PORT.toString());
-if (isNaN(port)) {
-	console.log(`No port configured. Defaulting to port ${DEFAULT_PORT}...`);
-	port = DEFAULT_PORT;
+// Validate options
+const config = {
+	wake: options.wake as string,
+	wakeword: options.wakeword as string,
+	asr: options.asr as string,
+	silenceThreshold: parseFloat(options.silenceThreshold),
+	whisperModel: options.whisperModel as string,
+	fasterWhisper: !!options.fasterWhisper,
+	whisperDevice: options.whisperDevice as (string | undefined),
+	llm: options.llm as string,
+	memoryLength: parseInt(options.memoryLength),
+	memoryDuration: parseInt(options.memoryDuration),
+	systemPromptFile: options.systemPromptFile as string,
+	ollamaHost: options.ollamaHost as string,
+	ollamaModel: options.ollamaModel as string,
+	tts: options.tts as string,
+	coquiModel: options.coquiModel as string,
+	coquiDevice: options.coquiDevice as (string | undefined),
+	sapi4Voice: options.sapi4Voice as string,
+	sapi4Pitch: parseInt(options.sapi4Pitch),
+	sapi4Speed: parseInt(options.sapi4Speed),
+	python: options.python as string,
+	port: parseInt(options.port || process.env.PORT),
+	forceDevice: options.forceDevice as (string | undefined)
+};
+if (isNaN(config.silenceThreshold)) {
+	console.error("--silence-threshold should be a float");
+	process.exit(1);
+} else if (isNaN(config.memoryLength)) {
+	console.error("--memory-length should be an integer");
+	process.exit(1);
+} else if (isNaN(config.memoryDuration)) {
+	console.error("--memory-duration should be an integer");
+	process.exit(1);
+} else if (isNaN(config.sapi4Pitch)) {
+	console.error("--sapi4-pitch should be an integer");
+	process.exit(1);
+} else if (isNaN(config.sapi4Speed)) {
+	console.error("--sapi4-speed should be an integer");
+	process.exit(1);
+} else if (isNaN(config.port)) {
+	console.error("--port should be an integer");
+	process.exit(1);
 }
 
 // A lock in case of multiple clients
 let locked = false;
-const server = new WebSocketServer({ port });
+const server = new WebSocketServer({ port: config.port });
 
 server.on("connection", socket => {
 	// Sockets will communicate using strings
@@ -132,6 +169,11 @@ server.on("connection", socket => {
 				success();
 				socket.send(`status ${!!wake} ${!!asr} ${!!llm} ${!!tts}`);
 				break;
+			// Get config
+			case "config":
+				success();
+				socket.send(`config ${JSON.stringify(config)}`);
+				break;
 			// Set a new wake method
 			case "set-wake":
 				if (args.length < 1) fail("args");
@@ -142,11 +184,11 @@ server.on("connection", socket => {
 			case "set-wake-word":
 				if (args.length < 1) fail("args");
 				else {
-					const old = options.wakeword;
-					options.wakeword = args.join(" ");
+					const old = config.wakeword;
+					config.wakeword = args.join(" ");
 					if (await changeWake(activeWake)) success();
 					else {
-						options.wakeword = old;
+						config.wakeword = old;
 						fail("invalid");
 					}
 				}
@@ -161,11 +203,11 @@ server.on("connection", socket => {
 			case "set-asr-model":
 				if (args.length < 1) fail("args");
 				else {
-					const old = options.whisperModel;
-					options.whisperModel = args.join(" ");
+					const old = config.whisperModel;
+					config.whisperModel = args.join(" ");
 					if (await changeASR(activeAsr)) success();
 					else {
-						options.whisperModel = old;
+						config.whisperModel = old;
 						fail("invalid");
 					}
 				}
@@ -174,16 +216,16 @@ server.on("connection", socket => {
 			case "set-asr-faster":
 				if (args.length < 1) fail("args");
 				else {
-					const old = options.fasterWhisper;
-					if (args[0].toLowerCase() == "true") options.fasterWhisper = true;
-					else if (args[0].toLowerCase() == "false") options.fasterWhisper = false;
+					const old = config.fasterWhisper;
+					if (args[0].toLowerCase() == "true") config.fasterWhisper = true;
+					else if (args[0].toLowerCase() == "false") config.fasterWhisper = false;
 					else {
 						fail("invalid");
 						break;
 					}
 					if (await changeASR(activeAsr)) success();
 					else {
-						options.fasterWhisper = old;
+						config.fasterWhisper = old;
 						fail("invalid");
 					}
 				}
@@ -200,14 +242,14 @@ server.on("connection", socket => {
 				if (args.length < 1) fail("args");
 				else {
 					const key = action == "set-llm-mem-len" ? "memoryLength" : "memoryDuration";
-					const old = options[key];
-					options[key] = parseInt(args.join(" "));
-					if (isNaN(options[key])) {
-						options[key] = old;
+					const old = config[key];
+					config[key] = parseInt(args.join(" "));
+					if (isNaN(config[key])) {
+						config[key] = old;
 						fail("nan");
 					} else if (await changeLLM(activeLlm)) success();
 					else {
-						options[key] = old;
+						config[key] = old;
 						fail("invalid");
 					}
 				}
@@ -218,11 +260,11 @@ server.on("connection", socket => {
 				if (args.length < 1) fail("args");
 				else {
 					const key = action == "set-llm-sys-prompt" ? "systemPromptFile" : (action == "set-llm-ollama-host" ? "ollamaHost" : "ollamaModel");
-					const old = options[key];
-					options[key] = args.join(" ");
+					const old = config[key];
+					config[key] = args.join(" ");
 					if (await changeLLM(activeLlm)) success();
 					else {
-						options[key] = old;
+						config[key] = old;
 						fail("invalid");
 					}
 				}
@@ -235,11 +277,11 @@ server.on("connection", socket => {
 			case "set-tts-coqui-model":
 				if (args.length < 1) fail("args");
 				else {
-					const old = options.coquiModel;
-					options.coquiModel = args.join(" ");
+					const old = config.coquiModel;
+					config.coquiModel = args.join(" ");
 					if (await changeTTS(activeTts)) success();
 					else {
-						options.coquiModel = old;
+						config.coquiModel = old;
 						fail("invalid");
 					}
 				}
@@ -265,10 +307,10 @@ let asr: ASR | undefined;
 let llm: LLM | undefined;
 let tts: TTS | undefined;
 
-let activeWake = options.wake;
-let activeAsr = options.asr;
-let activeLlm = options.llm;
-let activeTts = options.tts;
+let activeWake = config.wake;
+let activeAsr = config.asr;
+let activeLlm = config.llm;
+let activeTts = config.tts;
 
 let llmFinished = true;
 
@@ -289,7 +331,7 @@ async function changeWake(method: string) {
 		switch (method) {
 			case "openwakeword":
 				const { OpenWakeWord } = await import("./wake/oww.js");
-				wake = new OpenWakeWord(options.wakeword, options.python);
+				wake = new OpenWakeWord(config.wakeword, config.python);
 				break;
 			case "manual":
 				const { ManualWake } = await import("./wake/manual.js");
@@ -326,11 +368,11 @@ async function changeASR(method: string) {
 		switch (method) {
 			case "whisper":
 				const { LocalASR } = await import("./asr/local.js");
-				asr = new LocalASR(options.whisperModel, options.fasterWhisper, parseFloat(options.silenceThreshold), options.whisperDevice || options.forceDevice, options.python);
+				asr = new LocalASR(config.whisperModel, config.fasterWhisper, config.silenceThreshold, config.whisperDevice || config.forceDevice, config.python);
 				break;
 			case "google":
 				const { GoogleASR } = await import("./asr/google.js");
-				asr = new GoogleASR(parseFloat(options.silenceThreshold));
+				asr = new GoogleASR(config.silenceThreshold);
 				break;
 		}
 		if (!asr) throw new Error("ASR method is invalid!");
@@ -369,11 +411,11 @@ async function changeLLM(method: string) {
 		switch (method) {
 			case "ollama":
 				const { OllamaLLM } = await import("./llm/ollama.js");
-				llm = new OllamaLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile, options.ollamaHost, options.ollamaModel);
+				llm = new OllamaLLM(config.memoryLength, config.memoryDuration, config.systemPromptFile, config.ollamaHost, config.ollamaModel);
 				break;
 			case "deepseek":
 				const { DeepseekLLM } = await import("./llm/deepseek.js");
-				llm = new DeepseekLLM(parseInt(options.memoryLength), parseInt(options.memoryDuration), options.systemPromptFile);
+				llm = new DeepseekLLM(config.memoryLength, config.memoryDuration, config.systemPromptFile);
 				break;
 		}
 		if (!llm) throw new Error("LLM method is invalid!");
@@ -409,11 +451,11 @@ async function changeTTS(method: string) {
 		switch (method) {
 			case "coqui":
 				const { CoquiTTS } = await import("./tts/coqui.js");
-				tts = new CoquiTTS(options.coquiModel, options.coquiDevice || options.forceDevice, options.python);
+				tts = new CoquiTTS(config.coquiModel, config.coquiDevice || config.forceDevice, config.python);
 				break;
 			case "sapi4":
 				const { SAPI4TTS } = await import("./tts/sapi4.js");
-				tts = new SAPI4TTS(options.sapi4Voice, options.sapi4Pitch, options.sapi4Speed);
+				tts = new SAPI4TTS(config.sapi4Voice, config.sapi4Pitch, config.sapi4Speed);
 				break;
 		}
 		if (!tts) throw new Error("TTS method is invalid!");
@@ -455,8 +497,8 @@ process.on("SIGINT", () => {
 	// Initialize all the commands LLM can use
 	await Command.init();
 
-	await changeWake(options.wake);
-	await changeASR(options.asr);
-	await changeLLM(options.llm);
-	await changeTTS(options.tts);
+	await changeWake(config.wake);
+	await changeASR(config.asr);
+	await changeLLM(config.llm);
+	await changeTTS(config.tts);
 })();
