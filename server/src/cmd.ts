@@ -67,6 +67,7 @@ export abstract class Command {
 			(await import("./cmd/remind.js")).remind,
 			(await import("./cmd/media.js")).play,
 			(await import("./cmd/media.js")).stop,
+			(await import("./cmd/weather.js")).weather,
 		];
 		commands.forEach(cmd => this.commands.set(cmd.name, cmd));
 	}
