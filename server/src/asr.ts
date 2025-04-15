@@ -6,6 +6,7 @@ export declare interface ASR {
 	on(event: "unsure", listener: (transcript: string) => void): this;
 	on(event: "partial", listener: (transcript: string) => void): this;
 	on(event: "result", listener: (transcript: string) => void): this;
+	on(event: "volume", listener: (volume: number) => void): this;
 }
 
 export abstract class ASR extends EventEmitter {

@@ -47,10 +47,14 @@ export class GoogleASR extends ASR {
 				if (data.results[0].isFinal) {
 					this.emit("partial", data.results[0].alternatives[0].transcript);
 					this.transcripts.push(data.results[0].alternatives[0].transcript);
+					if (!this.threshold) this.stop();
 				} else this.emit("unsure", data.results[0].alternatives[0].transcript);
 			});
 
-		this.mic.getAudioStream().on("silence", () => {
+		this.mic.getAudioStream().on("data", (chunk: number[]) => {
+			const sum = chunk.map(sample => Math.abs(sample)).reduce((a, b) => a + b);
+			this.emit("volume", sum / (chunk.length * 255));
+		}).on("silence", () => {
 			this.stop();
 		}).on("error", (err: any) => {
 			console.error(err);

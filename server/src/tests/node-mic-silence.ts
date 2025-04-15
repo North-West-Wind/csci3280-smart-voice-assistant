@@ -14,7 +14,9 @@ mic.getAudioStream().on("silence", () => {
 	console.log("silence");
 }).on("sound", () => {
 	console.log("sound");
-}).on("data", data => {
+}).on("data", (chunk: number[]) => {
+	const sum = chunk.map(sample => Math.abs(sample)).reduce((a, b) => a + b);
+	console.log(sum / chunk.length);
 	//console.log("data");
 });
 

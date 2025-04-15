@@ -4,6 +4,7 @@ import { ASR } from "../asr";
 export class LocalASR extends ASR {
 	private ready: boolean;
 	private shell?: PythonShell;
+	private mic?: any;
 
 	constructor(model: string, faster: boolean, threshold: number, device?: string, pythonPath?: string) {
 		super();
@@ -36,14 +37,31 @@ export class LocalASR extends ASR {
 		});
 	}
 
-	start() {
+	async start() {
 		if (!this.ready) throw new Error("LocalASR is not ready yet");
 		this.shell?.send("start");
 		this.emit("start");
+
+		// NodeMic here is purely for output volume
+		const NodeMic = (await import("node-mic")).default;
+		this.mic = new NodeMic({
+			rate: 16000,
+			channels: 1,
+			bitwidth: 16,
+			endian: "little",
+			fileType: "raw"
+		});
+
+		this.mic.getAudioStream().on("data", (chunk: number[]) => {
+			const sum = chunk.map(sample => Math.abs(sample)).reduce((a, b) => a + b);
+			this.emit("volume", sum / (chunk.length * 255));
+		});
+		this.mic.start();
 	}
 
 	stop() {
 		this.shell?.send("stop");
+		this.mic?.stop();
 	}
 
 	interrupt() {

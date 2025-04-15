@@ -393,6 +393,10 @@ async function changeASR(method: string) {
 			llm?.process(result);
 		});
 
+		asr.on("volume", volume => {
+			server.clients.forEach(socket => socket.send("asr " + volume));
+		});
+
 		return true;
 	} catch (err) {
 		console.error(err);
