@@ -427,14 +427,14 @@ async function changeLLM(method: string) {
 
 		// LLM outputs, pass it to TTS
 		llm.on("partial", (word, ctx) => {
-			if (ctx == "chat") server.clients.forEach(socket => socket.send(`res ${word}`));
+			if (ctx == "chat") server.clients.forEach(socket => socket.send(`llm ${word}`));
 		});
 		llm.on("line", line => {
 			tts?.process(line);
 		});
 		llm.on("result", () => {
 			llmFinished = true;
-			server.clients.forEach(socket => socket.send("res-done"));
+			server.clients.forEach(socket => socket.send("llm-done"));
 		});
 		return true;
 	} catch (err) {
