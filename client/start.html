@@ -140,7 +140,7 @@
       max-height: 80vh;
       overflow-y: auto;
       width: 80%;
-      max-width: 600px;
+      max-width: 800px;
       position: relative;
       color: #ffffff;
     }
@@ -173,6 +173,49 @@
         transition: none;
       }
     }
+    
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #555;
+    }
+
+    .tab-button {
+      padding: 10px 20px;
+      cursor: pointer;
+      background: #333;
+      color: #ffffff;
+      border: 1px solid #555;
+      border-bottom: none;
+      margin-right: 5px;
+    }
+
+    .tab-button.active {
+      background: #1e2133;
+      border-bottom: 1px solid #1e2133;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 20px;
+      border: 1px solid #555;
+      border-top: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    input, select {
+      margin-left: 10px;
+      background-color: #333;
+      color: #ffffff;
+      border: 1px solid #555;
+    }
   </style>
 </head>
 <body>
@@ -181,14 +224,81 @@
     <div class="modal-content">
       <span class="close-button">×</span>
       <h2>Settings</h2>
-      <p>Settings for the smart voice assistant will be implemented here.</p>
-      <p>Placeholder content for backend settings:</p>
-      <ul>
-        <li>Audio Quality: High</li>
-        <li>Listening Format: MP3</li>
-        <li>Storage Location: Cloud</li>
-      </ul>
-      <p>Additional placeholder content.</p>
+      <div class="tabs">
+        <button class="tab-button active" data-tab="general-content">General</button>
+        <button class="tab-button" data-tab="tts-content">TTS</button>
+        <button class="tab-button" data-tab="llm-content">LLM</button>
+        <button class="tab-button" data-tab="asr-content">ASR</button>
+      </div>
+      <div id="general-content" class="tab-content active">
+        <h2>General Settings</h2>
+        <label>Wake/Trigger Method:
+          <select id="wake-method">
+            <option value="openwakeword">OpenWakeWord</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
+        <label>Wake Word Path:
+          <input type="text" id="wake-word-path" placeholder="Path to .onnx or .tflite file">
+        </label>
+        <p>Note: The wake word path should point to a .onnx or .tflite file.</p>
+      </div>
+      <div id="tts-content" class="tab-content">
+        <h2>Text-to-Speech Settings</h2>
+        <label>TTS Method:
+          <select id="tts-method">
+            <option value="coqui">Coqui</option>
+            <option value="google">Google</option>
+          </select>
+        </label>
+      </div>
+      <div id="llm-content" class="tab-content">
+        <h2>Large-Language-Model Settings</h2>
+        <label>Memory Length:
+          <input type="number" id="llm-mem-len" min="0">
+        </label>
+        <label>Memory Duration (seconds):
+          <input type="number" id="llm-mem-dur" min="0">
+        </label>
+        <label>LLM Method:
+          <select id="llm-method">
+            <option value="deepseek">Deepseek</option>
+            <option value="ollama">Ollama</option>
+          </select>
+        </label>
+        <div id="ollama-fields" style="display: none;">
+          <label>Ollama Model:
+            <input type="text" id="ollama-model">
+          </label>
+          <label>Ollama Host:
+            <input type="text" id="ollama-host">
+          </label>
+        </div>
+      </div>
+      <div id="asr-content" class="tab-content">
+        <h2>ASR Settings</h2>
+        <label>ASR Method:
+          <select id="asr-method">
+            <option value="whisper">Whisper</option>
+            <option value="google">Google</option>
+          </select>
+        </label>
+        <div id="whisper-fields" style="display: block;">
+          <label>ASR Model:
+            <select id="asr-model">
+              <option value="tiny">Tiny</option>
+              <option value="base">Base</option>
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+              <option value="turbo">Turbo</option>
+            </select>
+          </label>
+          <label>Use Faster Whisper:
+            <input type="checkbox" id="asr-faster">
+          </label>
+        </div>
+      </div>
     </div>
   </div>
   <div class="recording-container">
@@ -418,6 +528,88 @@
         hideModal();
       }
     });
+
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+          document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+          const tabId = button.getAttribute('data-tab');
+          document.getElementById(tabId).classList.add('active');
+          button.classList.add('active');
+        });
+      });
+
+      const llmMethodSelect = document.getElementById('llm-method');
+      const ollamaFields = document.getElementById('ollama-fields');
+      ollamaFields.style.display = llmMethodSelect.value === 'ollama' ? 'block' : 'none';
+      llmMethodSelect.addEventListener('change', function() {
+        ollamaFields.style.display = this.value === 'ollama' ? 'block' : 'none';
+        console.log("ws sent: set-llm " + this.value);
+        ws.send('set-llm ' + this.value);
+      });
+
+      const asrMethodSelect = document.getElementById('asr-method');
+      const whisperFields = document.getElementById('whisper-fields');
+      whisperFields.style.display = asrMethodSelect.value === 'whisper' ? 'block' : 'none';
+      
+      asrMethodSelect.addEventListener('change', function() {
+        whisperFields.style.display = this.value === 'whisper' ? 'block' : 'none';
+        console.log("ws sent: set-asr " + this.value);
+        ws.send('set-asr ' + this.value);
+      });
+
+      document.getElementById('wake-method').addEventListener('change', function() {
+        console.log("ws sent: set-wake " + this.value);
+        ws.send('set-wake ' + this.value);
+      });
+
+      document.getElementById('wake-word-path').addEventListener('blur', function() {
+        console.log("ws sent: set-wake-word " + this.value);
+        ws.send('set-wake-word ' + this.value);
+      });
+
+      document.getElementById('tts-method').addEventListener('change', function() {
+        console.log("ws sent: set-tts " + this.value);
+        ws.send('set-tts ' + this.value);
+      });
+
+      document.getElementById('llm-mem-len').addEventListener('change', function() {
+        console.log("ws sent: set-llm-mem-len " + this.value);
+        ws.send('set-llm-mem-len ' + this.value);
+      });
+
+      document.getElementById('llm-mem-dur').addEventListener('change', function() {
+        console.log("ws sent: set-llm-mem-dur " + this.value);
+        ws.send('set-llm-mem-dur ' + this.value);
+      });
+
+      document.getElementById('ollama-model').addEventListener('blur', function() {
+        if (llmMethodSelect.value === 'ollama') {
+          console.log("ws sent: set-llm-ollama-model " + this.value);
+          ws.send('set-llm-ollama-model ' + this.value);
+        }
+      });
+
+      document.getElementById('ollama-host').addEventListener('blur', function() {
+        if (llmMethodSelect.value === 'ollama') {
+          console.log("ws sent: set-llm-ollama-host " + this.value);
+          ws.send('set-llm-ollama-host ' + this.value);
+        }
+      });
+
+      document.getElementById('asr-model').addEventListener('change', function() {
+        if (asrMethodSelect.value === 'whisper') {
+          console.log("ws sent: set-asr-model " + this.value);
+          ws.send('set-asr-model ' + this.value);
+        }
+      });
+
+      document.getElementById('asr-faster').addEventListener('change', function() {
+        if (asrMethodSelect.value === 'whisper') {
+          console.log("ws sent: set-asr-faster " + (this.checked ? 'true' : 'false'));
+          ws.send('set-asr-faster ' + (this.checked ? 'true' : 'false'));
+        }
+      });
   </script>
 </body>
 </html>
