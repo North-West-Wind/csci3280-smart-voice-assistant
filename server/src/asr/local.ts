@@ -21,7 +21,7 @@ export class LocalASR extends ASR {
 				switch (type) {
 					case "result":
 						this.emit("result", arr.join(" "));
-						this.emit("stop");
+						this.stop();
 						break;
 					default:
 						console.log("stt: " + message);
@@ -60,13 +60,13 @@ export class LocalASR extends ASR {
 	}
 
 	stop() {
-		this.shell?.send("stop");
 		this.mic?.stop();
 	}
 
 	interrupt() {
 		super.interrupt();
 		this.stop();
+		this.shell?.send("stop");
 		this.shell?.kill("SIGINT");
 	}
 }

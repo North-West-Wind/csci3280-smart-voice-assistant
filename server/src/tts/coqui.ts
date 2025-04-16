@@ -21,7 +21,7 @@ export class CoquiTTS extends TTS {
 				const type = arr.shift();
 				switch (type) {
 					case "finish":
-						this.processing.add(parseInt(arr.join("")));
+						this.processing.delete(parseInt(arr.join("")));
 						break;
 					default:
 						console.log("tts: " + message);
@@ -39,6 +39,7 @@ export class CoquiTTS extends TTS {
 
 	protected async speak(id: number, line: string) {
 		if (!this.ready) throw new Error("CoquiTTS is not ready yet");
+		this.processing.add(id);
 		const prom = new Promise<void>(async res => {
 			while (this.processing.has(id))
 				await wait(100);

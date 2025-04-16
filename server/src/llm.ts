@@ -17,9 +17,9 @@ export abstract class LLM extends EventEmitter {
 	private systemPrompt: Message;
 	private prefixMessages: Message[];
 	// runtime
-	private messages: TypedMessage[] = [];
-	private userMessages = 0;
-	private forgetTimeout?: NodeJS.Timeout;
+	private static messages: TypedMessage[] = [];
+	private static userMessages = 0;
+	private static forgetTimeout?: NodeJS.Timeout;
 
 	private interrupted = false;
 
@@ -40,31 +40,31 @@ export abstract class LLM extends EventEmitter {
 
 	async process(input: string) {
 			// auto-forget after some time
-			if (this.forgetTimeout) this.forgetTimeout.refresh();
-			else this.forgetTimeout = setTimeout(() => {
-				this.messages = [];
+			if (LLM.forgetTimeout) LLM.forgetTimeout.refresh();
+			else LLM.forgetTimeout = setTimeout(() => {
+				LLM.messages = [];
 			}, this.duration * 1000);
 	
-			this.messages.push({ role: "user", type: "req", content: input.trim() });
-			this.userMessages++;
-			while (this.userMessages > this.memory) {
-				const first = this.messages.shift()!;
-				if (first.role == "user" && first.type == "req") this.userMessages--;
+			LLM.messages.push({ role: "user", type: "req", content: input.trim() });
+			LLM.userMessages++;
+			while (LLM.userMessages > this.memory) {
+				const first = LLM.messages.shift()!;
+				if (first.role == "user" && first.type == "req") LLM.userMessages--;
 			}
 			let hasResponse = false;
 			const chats: string[] = [];
 			do {
 				// don't forget in the middle of conversation!
-				if (this.forgetTimeout) this.forgetTimeout.refresh();
-				const message: Message = { role: "assistant", content: await this.chat(this.prefixMessages.concat(this.messages)) };
+				if (LLM.forgetTimeout) LLM.forgetTimeout.refresh();
+				const message: Message = { role: "assistant", content: await this.chat(this.prefixMessages.concat(LLM.messages)) };
 				//console.log(message.content);
-				this.messages.push(message);
+				LLM.messages.push(message);
 				const responses = await Command.handleResponse(message.content);
 				if (!responses.length) {
 					// if no command is called, the LLM is broken. just assume this is /chat
 					// modify message content
 					message.content = `/chat ${message.content}`;
-					this.messages[this.messages.length - 1] = message;
+					LLM.messages[LLM.messages.length - 1] = message;
 					// redo response, and directly put result to chats
 					const resp = await Command.handleResponse(message.content);
 					chats.push(resp[0].response);
@@ -77,7 +77,7 @@ export abstract class LLM extends EventEmitter {
 						return false;
 					});
 					if (cmdOutputs.length) {
-						this.messages.push({ role: "user", type: "res", content: cmdOutputs.map(res => res.response).join("\n\n") });
+						LLM.messages.push({ role: "user", type: "res", content: cmdOutputs.map(res => res.response).join("\n\n") });
 						hasResponse = true;
 					} else hasResponse = false;
 				}
@@ -88,5 +88,11 @@ export abstract class LLM extends EventEmitter {
 	interrupt() {
 		this.removeAllListeners();
 		this.interrupted = true;
+	}
+
+	static clear() {
+		this.messages = [];
+		this.userMessages = 0;
+		if (this.forgetTimeout) clearTimeout(this.forgetTimeout);
 	}
 }

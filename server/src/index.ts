@@ -11,7 +11,7 @@ import { sharedTTS, sharedWake } from "./shared";
 const WAKE_METHODS = ["manual", "openwakeword"];
 const ASR_METHODS = ["whisper", "google"];
 const LLM_METHODS = ["deepseek", "ollama"];
-const TTS_METHODS = ["coqui", "sapi4"];
+const TTS_METHODS = ["coqui", "google"];
 
 program
 	// wake word/trigger options
@@ -34,9 +34,6 @@ program
 	.addOption(new Option("--tts <method>", "method for text-to-speech").default("coqui").choices(TTS_METHODS))
 	.option("--coqui-model <model>", "(only for --tts coqui) model to use coqui tts, or \"list\" to get a list of them", "tts_models/en/jenny/jenny")
 	.addOption(new Option("--coqui-device <name>", "(only for --tts coqui) force-use this device for running coqui").choices(["cuda", "cpu"]))
-	.option("--sapi4-voice <name>", "(only for --tts sapi4) voice to use for sapi4 tts", "Mary")
-	.option("--sapi4-pitch <number>", "(only for --tts sapi4) pitch to use for sapi4 tts", "169")
-	.option("--sapi4-speed <number>", "(only for --tts sapi4) speed to use for sapi4 tts", "170")
 	// misc/common options
 	.option("--python <path>", "path to a python virtual environment (venv) with all dependencies from requirements.txt installed")
 	.option("--port <number>", "port number for the websocket server", "3280")
@@ -63,9 +60,6 @@ const config = {
 	tts: options.tts as string,
 	coquiModel: options.coquiModel as string,
 	coquiDevice: options.coquiDevice as (string | undefined),
-	sapi4Voice: options.sapi4Voice as string,
-	sapi4Pitch: parseInt(options.sapi4Pitch),
-	sapi4Speed: parseInt(options.sapi4Speed),
 	python: options.python as string,
 	port: parseInt(options.port || process.env.PORT),
 	forceDevice: options.forceDevice as (string | undefined)
@@ -78,12 +72,6 @@ if (isNaN(config.silenceThreshold)) {
 	process.exit(1);
 } else if (isNaN(config.memoryDuration)) {
 	console.error("--memory-duration should be an integer");
-	process.exit(1);
-} else if (isNaN(config.sapi4Pitch)) {
-	console.error("--sapi4-pitch should be an integer");
-	process.exit(1);
-} else if (isNaN(config.sapi4Speed)) {
-	console.error("--sapi4-speed should be an integer");
 	process.exit(1);
 } else if (isNaN(config.port)) {
 	console.error("--port should be an integer");
@@ -138,6 +126,11 @@ server.on("connection", socket => {
 					success();
 				}
 				break;
+			// Clear all message history
+			case "clear":
+				LLM.clear();
+				success();
+				break;
 			// List methods
 			case "methods":
 				if (args.length < 1) fail("args");
@@ -186,7 +179,7 @@ server.on("connection", socket => {
 				else {
 					const old = config.wakeword;
 					config.wakeword = args.join(" ");
-					if (await changeWake(activeWake)) success();
+					if (await changeWake(config.wake)) success();
 					else {
 						config.wakeword = old;
 						fail("invalid");
@@ -205,7 +198,7 @@ server.on("connection", socket => {
 				else {
 					const old = config.whisperModel;
 					config.whisperModel = args.join(" ");
-					if (await changeASR(activeAsr)) success();
+					if (await changeASR(config.asr)) success();
 					else {
 						config.whisperModel = old;
 						fail("invalid");
@@ -223,7 +216,7 @@ server.on("connection", socket => {
 						fail("invalid");
 						break;
 					}
-					if (await changeASR(activeAsr)) success();
+					if (await changeASR(config.asr)) success();
 					else {
 						config.fasterWhisper = old;
 						fail("invalid");
@@ -247,7 +240,7 @@ server.on("connection", socket => {
 					if (isNaN(config[key])) {
 						config[key] = old;
 						fail("nan");
-					} else if (await changeLLM(activeLlm)) success();
+					} else if (await changeLLM(config.llm)) success();
 					else {
 						config[key] = old;
 						fail("invalid");
@@ -262,7 +255,7 @@ server.on("connection", socket => {
 					const key = action == "set-llm-sys-prompt" ? "systemPromptFile" : (action == "set-llm-ollama-host" ? "ollamaHost" : "ollamaModel");
 					const old = config[key];
 					config[key] = args.join(" ");
-					if (await changeLLM(activeLlm)) success();
+					if (await changeLLM(config.llm)) success();
 					else {
 						config[key] = old;
 						fail("invalid");
@@ -279,7 +272,7 @@ server.on("connection", socket => {
 				else {
 					const old = config.coquiModel;
 					config.coquiModel = args.join(" ");
-					if (await changeTTS(activeTts)) success();
+					if (await changeTTS(config.tts)) success();
 					else {
 						config.coquiModel = old;
 						fail("invalid");
@@ -306,11 +299,6 @@ let wake: Wake | undefined;
 let asr: ASR | undefined;
 let llm: LLM | undefined;
 let tts: TTS | undefined;
-
-let activeWake = config.wake;
-let activeAsr = config.asr;
-let activeLlm = config.llm;
-let activeTts = config.tts;
 
 let llmFinished = true;
 
@@ -339,7 +327,7 @@ async function changeWake(method: string) {
 				break;
 		}
 		if (!wake) throw new Error("Wake or trigger method is invalid!");
-		activeWake = method;
+		config.wake = method;
 		sharedWake(wake);
 
 		wake.on("wake", () => {
@@ -376,7 +364,7 @@ async function changeASR(method: string) {
 				break;
 		}
 		if (!asr) throw new Error("ASR method is invalid!");
-		activeAsr = method;
+		config.asr = method;
 
 		asr.on("start", () => {
 			server.clients.forEach(socket => socket.send("asr-start"));
@@ -423,7 +411,7 @@ async function changeLLM(method: string) {
 				break;
 		}
 		if (!llm) throw new Error("LLM method is invalid!");
-		activeLlm = method;
+		config.llm = method;
 
 		// LLM outputs, pass it to TTS
 		llm.on("partial", (word, ctx) => {
@@ -457,13 +445,13 @@ async function changeTTS(method: string) {
 				const { CoquiTTS } = await import("./tts/coqui.js");
 				tts = new CoquiTTS(config.coquiModel, config.coquiDevice || config.forceDevice, config.python);
 				break;
-			case "sapi4":
-				const { SAPI4TTS } = await import("./tts/sapi4.js");
-				tts = new SAPI4TTS(config.sapi4Voice, config.sapi4Pitch, config.sapi4Speed);
+			case "google":
+				const { GoogleTTS } = await import("./tts/google.js");
+				tts = new GoogleTTS();
 				break;
 		}
 		if (!tts) throw new Error("TTS method is invalid!");
-		activeTts = method;
+		config.tts = method;
 		sharedTTS(tts);
 
 		tts.on("start", () => {

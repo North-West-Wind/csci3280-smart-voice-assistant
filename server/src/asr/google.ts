@@ -13,7 +13,7 @@ export class GoogleASR extends ASR {
 
 		if (!process.env.GOOGLE_KEY) throw new Error("No Google Cloud API key found! Create a file named \".env\" under the \"server/\" directory and append \"GOOGLE_KEY=<key>\" to the file. The API key should be able to call the Cloud Speech API.");
 		this.client = new SpeechClient({ apiKey: process.env.GOOGLE_KEY });
-		this.threshold = threshold;
+		this.threshold = Math.round(threshold * 8);
 	}
 
 	async start() {
@@ -24,7 +24,7 @@ export class GoogleASR extends ASR {
 			bitwidth: 16,
 			endian: "little",
 			fileType: "raw",
-			threshold: this.threshold * 8,
+			threshold: this.threshold,
 		});
 
 		const request = {
@@ -66,7 +66,6 @@ export class GoogleASR extends ASR {
 	stop() {
 		this.mic?.stop();
 		this.emit("result", this.transcripts.join(". "));
-		this.emit("stop");
 	}
 
 	interrupt() {

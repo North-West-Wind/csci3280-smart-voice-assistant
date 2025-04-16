@@ -10,6 +10,7 @@ export abstract class TTS extends EventEmitter {
 	private id = 0;
 	private speaking = false;
 	protected lines = new Map<number, string>();
+	protected queue: number[] = [];
 
 	protected abstract speak(id: number, line: string): Promise<void>;
 
@@ -26,10 +27,12 @@ export abstract class TTS extends EventEmitter {
 		}
 		const id = this.id++;
 		this.lines.set(id, line);
+		this.queue.push(id);
 		this.speak(id, line).catch(err => {
 			console.error(err);
 		}).finally(() => {
 			this.lines.delete(id);
+			this.queue.shift();
 			this.emit("done", this.lines.size);
 			if (!this.lines.size) this.speaking = false;
 		});

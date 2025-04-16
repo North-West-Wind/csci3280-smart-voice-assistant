@@ -1,0 +1,9 @@
+- Each component
+	- Google TTS
+- Hot-swapping components
+	- Wake
+	- ASR
+	- LLM
+	- TTS
+- ~~Websocket~~
+- Test on laptop
