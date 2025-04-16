@@ -43,6 +43,8 @@ export abstract class LLM extends EventEmitter {
 			if (LLM.forgetTimeout) LLM.forgetTimeout.refresh();
 			else LLM.forgetTimeout = setTimeout(() => {
 				LLM.messages = [];
+				LLM.userMessages = 0;
+				LLM.forgetTimeout = undefined;
 			}, this.duration * 1000);
 	
 			LLM.messages.push({ role: "user", type: "req", content: input.trim() });
