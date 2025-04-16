@@ -192,6 +192,22 @@ server.on("connection", socket => {
 				else if (await changeASR(args.join(" "))) success();
 				else fail("invalid");
 				break;
+			case "set-asr-silence":
+				if (args.length < 1) fail("args");
+				else {
+					const old = config.silenceThreshold;
+					config.silenceThreshold = parseFloat(args.join(" "));
+					if (isNaN(config.silenceThreshold)) {
+						config.silenceThreshold = old;
+						fail("nan");
+					}
+					else if (await changeASR(config.asr)) success();
+					else {
+						config.silenceThreshold = old;
+						fail("invalid");
+					}
+				}
+				break;
 			// set whisper model
 			case "set-asr-model":
 				if (args.length < 1) fail("args");
@@ -267,7 +283,7 @@ server.on("connection", socket => {
 				else if (await changeTTS(args.join(" "))) success();
 				else fail("invalid");
 				break;
-			case "set-tts-coqui-model":
+			case "set-tts-model":
 				if (args.length < 1) fail("args");
 				else {
 					const old = config.coquiModel;
@@ -368,10 +384,6 @@ async function changeASR(method: string) {
 
 		asr.on("start", () => {
 			server.clients.forEach(socket => socket.send("asr-start"));
-		});
-
-		asr.on("unsure", transcript => {
-			console.log("unsure:", transcript);
 		});
 
 		// When the transcription result is ready, pass it to LLM

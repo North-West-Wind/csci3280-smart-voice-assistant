@@ -80,7 +80,7 @@ export class OllamaLLM extends LLM {
 				notChat = false;
 				immThink = false;
 			}
-			if (chatLine && isChat) this.emit("line", line);
+			if (chatLine && isChat) this.emit("line", chatLine);
 			return content;
 		} catch (err: any) {
 			if (typeof err.message == "string") return err.message;

@@ -1,9 +1,43 @@
 - Each component
-	- Google TTS
-- Hot-swapping components
-	- Wake
+	- Trigger
+		- ~~OWW~~
+		- ~~Manual~~
 	- ASR
+		- Whisper
+		- ~~Faster Whisper~~
+		- ~~Google STT~~
 	- LLM
+		- ~~Ollama~~
+		- ~~Deepseek~~
 	- TTS
+		- ~~Coqui~~
+		- ~~Google TTS~~
+- Hot-swapping components
+	- ~~Wake~~
+	- ~~ASR~~
+	- ~~LLM~~
+	- ~~TTS~~
+- Hot-swapping options
+	- Trigger
+		- Wake word (untestable)
+	- ASR
+		- ~~Silence threshold~~
+		- ~~Whisper model~~
+		- ~~Faster Whisper toggle~~
+	- LLM
+		- Memory
+			- Length (whatever)
+			- ~~Time~~
+		- System Prompt (don't care)
+		- Ollama
+			- Host (too tired to test)
+			- Model (no space)
+	- TTS
+		- Coqui model (too much variation on python)
 - ~~Websocket~~
+- Commands
+	- ~~Weather~~
 - Test on laptop
+
+## TODO Fixes
+- ~~Reminder crash~~
