@@ -37,7 +37,7 @@
 - ~~Websocket~~
 - Commands
 	- ~~Weather~~
-- Test on laptop
+- ~~Test on laptop~~
 
 ## TODO Fixes
 - ~~Reminder crash~~
