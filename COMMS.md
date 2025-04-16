@@ -8,11 +8,14 @@ Current revision: 0.5
 - 0.3: Added `asr-start/done`, `tts-start/line/done`. Renamed `rec` to `asr`.
 - 0.4: Added `config` message and command.
 - 0.5: Added `clear` command. Renamed `res` and `res-done` to `llm` and `llm-done`.
+- 0.6: Added `lock` and `unlock` message.
 
 ## Common
 All messages are sent as strings.
 
 ## Messages from server
+- `lock`: The program has been triggered. Disable repeated triggering.
+- `unlock`: Response has finished. Frontend can enable triggering again.
 - `asr <level>`: Audio loudness when recording. This will be a continuous stream when ASR is running. `<level>` is linear between 0 and 1.
 - `asr-start`: When recording starts.
 - `asr-done <transcript>`: When recording stops. Returns the transcript.
