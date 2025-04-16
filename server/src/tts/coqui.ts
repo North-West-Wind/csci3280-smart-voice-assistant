@@ -20,11 +20,25 @@ export class CoquiTTS extends TTS {
 				const arr = message.split(" ");
 				const type = arr.shift();
 				switch (type) {
+					case "start":
+						this.processing.add(parseInt(arr.join("")));
+						break;
 					case "finish":
 						this.processing.delete(parseInt(arr.join("")));
 						break;
+					case "ignore":
+						let id = parseInt(arr.join(""));
+						this.processing.add(id);
+						setTimeout(() => {
+							this.processing.delete(id);
+						}, 100);
+						break;
+					case "ready":
+						console.log("CoquiTTS is ready");
+						this.ready = true;
+						break;
 					default:
-						console.log("tts: " + message);
+						// console.log("tts: " + message);
 				}
 			}).on("pythonError", err => {
 				this.ready = false;
@@ -32,22 +46,17 @@ export class CoquiTTS extends TTS {
 			}).on("stderr", err => {
 				console.error("tts: " + err);
 			});
-
-			this.ready = true;
 		});
 	}
 
 	protected async speak(id: number, line: string) {
 		if (!this.ready) throw new Error("CoquiTTS is not ready yet");
-		this.processing.add(id);
-		const prom = new Promise<void>(async res => {
-			while (this.processing.has(id))
-				await wait(100);
-			res();
-		});
-		this.emit("line", line);
 		this.shell?.send(`${id} ${line}`);
-		await prom;
+		while (!this.processing.has(id))
+			await wait(100);
+		this.emit("line", line);
+		while (this.processing.has(id))
+			await wait(100);
 	}
 
 	interrupt() {

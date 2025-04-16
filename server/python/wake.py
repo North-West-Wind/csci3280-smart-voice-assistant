@@ -53,7 +53,7 @@ def handle(message: str):
 
 manager.add_listener(handle)
 
-print("Listening for wakewords...")
+print("ready")
 
 while True:
 	try:

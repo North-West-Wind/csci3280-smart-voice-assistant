@@ -53,7 +53,7 @@ def process_inputs():
 		if not inputs.empty():
 			uid, text = inputs.get()
 			if not text.strip():
-				print(f"finish {uid}")
+				print(f"ignore {uid}")
 				continue
 			wav = tts.tts(text=text)
 			wavs.put((uid, wav))
@@ -62,12 +62,15 @@ thread = threading.Thread(target=process_inputs)
 thread.daemon = True
 thread.start()
 
+print("ready")
+
 # A loop to dequeue TTS wavs
 while True:
 	try:
 		time.sleep(0.1)
 		if not wavs.empty():
 			uid, wav = wavs.get()
+			print(f"start {uid}")
 			sd.play(wav, 48000) # Sample rate may depend on the model
 			sd.wait()
 			print(f"finish {uid}")

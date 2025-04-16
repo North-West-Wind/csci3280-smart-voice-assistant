@@ -7,6 +7,7 @@ class InputMan:
 		self._running = True
 		self._listeners = list()
 		self._thread = Thread(target=self.listen, daemon=True)
+		self._thread.daemon = True
 		self._thread.start()
 
 	def listen(self):
@@ -26,6 +27,3 @@ class InputMan:
 
 	def add_listener(self, listener: Callable[[str], None]):
 		self._listeners.append(listener)
-
-	def join(self):
-		self._thread.join()

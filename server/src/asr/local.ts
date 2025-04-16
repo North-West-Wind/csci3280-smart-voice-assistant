@@ -23,8 +23,12 @@ export class LocalASR extends ASR {
 						this.emit("result", arr.join(" "));
 						this.stop();
 						break;
+					case "ready":
+						console.log("LocalASR is ready");
+						this.ready = true;
+						break;
 					default:
-						console.log("stt: " + message);
+						// console.log("stt: " + message);
 				}
 			}).on("pythonError", err => {
 				this.ready = false;
@@ -32,8 +36,6 @@ export class LocalASR extends ASR {
 			}).on("stderr", err => {
 				console.error("stt: " + err);
 			});
-
-			this.ready = true;
 		});
 	}
 

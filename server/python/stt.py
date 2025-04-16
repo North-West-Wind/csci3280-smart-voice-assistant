@@ -72,7 +72,12 @@ def stopper(message: str):
 
 manager.add_listener(transcribe)
 manager.add_listener(stopper)
-print(f"{'Faster ' if FASTER else ''}Whisper is ready")
 
-# Join thread to keep program running until InputMan dies
-manager.join()
+print("ready")
+
+# Keep main thread running
+while True:
+	try:
+		time.sleep(0.1)
+	except KeyboardInterrupt:
+		break

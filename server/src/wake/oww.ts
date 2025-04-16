@@ -21,8 +21,12 @@ export class OpenWakeWord extends Wake {
 					case "wake":
 						this.emit("wake", arr.join(" "));
 						break;
+					case "ready":
+						console.log("OpenWakeWord is ready");
+						this.ready = true;
+						break;
 					default:
-						console.log("oww: " + message);
+						// console.log("oww: " + message);
 				}
 			}).on("pythonError", err => {
 				this.ready = false;
@@ -30,8 +34,6 @@ export class OpenWakeWord extends Wake {
 			}).on("stderr", err => {
 				console.error("oww: " + err);
 			});
-
-			this.ready = true;
 		});
 	}
 
