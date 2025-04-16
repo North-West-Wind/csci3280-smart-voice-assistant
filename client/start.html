@@ -1,0 +1,423 @@
+<!-- set PATH=C:\Users\User\csci3280-smart-voice-assistant\server\python\.venv\Scripts;%PATH% -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listening Button Page</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #141526;
+    }
+
+    .recording-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      position: relative;
+    }
+
+    .circle-button {
+      position: relative;
+      width: 125px;
+      height: 125px;
+      border-radius: 50%;
+      border: 2px solid #22b0e5;
+      background-color: transparent;
+      box-sizing: border-box;
+      transition: width 0.3s ease, height 0.3s ease, border-width 0.3s ease, background-color 0.3s ease;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #22b0e5;
+    }
+
+    .circle-button span {
+      transition: opacity 0.3s ease;
+    }
+
+    .circle-button::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 0;
+      height: 0;
+      background-color: #141526;
+      border-radius: 50%;
+      transition: width 0.3s ease, height 0.3s ease;
+      z-index: 1;
+    }
+
+    .circle-button.expanded {
+      width: 400px;
+      height: 400px;
+    }
+
+    .circle-button.recording {
+      border-width: 0;
+      background-color: #22b0e5;
+    }
+
+    .circle-button.recording span {
+      opacity: 0;
+    }
+
+    .circle-button.hollowing::before {
+      width: 350px;
+      height: 350px;
+    }
+
+    .waveform {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 2;
+    }
+
+    .tts-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 2;
+    }
+
+    .status {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      font-family: Arial, sans-serif;
+      font-size: 24px;
+      color: #596894;
+    }
+
+    #settings-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease;
+      z-index: 999;
+    }
+
+    .modal-content {
+      background-color: #1e2133;
+      padding: 20px;
+      border-radius: 5px;
+      max-height: 80vh;
+      overflow-y: auto;
+      width: 80%;
+      max-width: 600px;
+      position: relative;
+      color: #ffffff;
+    }
+
+    .close-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      font-size: 24px;
+      color: #ffffff;
+    }
+
+    .modal-content h2 {
+      margin-top: 0;
+    }
+
+    .modal-content p {
+      margin: 10px 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .circle-button,
+      .circle-button span,
+      .circle-button::before,
+      .waveform,
+      .tts-circle,
+      .status,
+      .modal {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button id="settings-button">Settings</button>
+  <div id="settings-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-button">×</span>
+      <h2>Settings</h2>
+      <p>Settings for the smart voice assistant will be implemented here.</p>
+      <p>Placeholder content for backend settings:</p>
+      <ul>
+        <li>Audio Quality: High</li>
+        <li>Listening Format: MP3</li>
+        <li>Storage Location: Cloud</li>
+      </ul>
+      <p>Additional placeholder content.</p>
+    </div>
+  </div>
+  <div class="recording-container">
+    <button class="circle-button" aria-label="Start recording">
+      <span>Start</span>
+      <svg class="waveform" width="351" height="100" viewBox="0 0 351 100">
+        <g id="bars"></g>
+      </svg>
+      <svg class="tts-circle" width="150" height="150" viewBox="0 0 150 150">
+        <circle cx="75" cy="75" r="75" fill="#ff6347" />
+      </svg>
+    </button>
+    <div class="status listening">Listening...</div>
+    <div class="status speaking">Speaking...</div>
+  </div>
+
+  <script>
+    const button = document.querySelector('.circle-button');
+    const ws = new WebSocket('ws://localhost:3280');
+    let isRecording = false;
+    let isASRActive = false;
+    let isTTSActive = false;
+    let manualStop = false;
+
+    let latestLevel = 0;
+    let phase = 0;
+    
+    const phaseSpeed = 0.1;
+    const asrColor = '#22b0e5';
+    const ttsColor = '#ff6347';
+    const minAmplitude = 2;
+    const maxAmplitude = 20;
+
+    const numBins = 20;
+    const barMaxHeight = 100;
+    const minFactor = 0.2;
+    const maxFactor = 1.0;
+    const p = 0.01;
+    const smoothing = 0.05;
+
+    let currentFactors = new Array(numBins).fill(0).map(() => Math.random() * (maxFactor - minFactor) + minFactor);
+    let targetFactors = [...currentFactors];
+
+    const barsGroup = document.getElementById('bars');
+    const binWidth = 15;
+    const spacing = 2;
+    const totalWidth = numBins * binWidth + (numBins - 1) * spacing;
+    const startX = (351 - totalWidth) / 2;
+
+    for (let i = 0; i < numBins; i++) {
+      const rectTop = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rectTop.setAttribute('x', startX + i * (binWidth + spacing));
+      rectTop.setAttribute('width', binWidth);
+      rectTop.setAttribute('fill', asrColor);
+      barsGroup.appendChild(rectTop);
+
+      const rectBottom = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rectBottom.setAttribute('x', startX + i * (binWidth + spacing));
+      rectBottom.setAttribute('width', binWidth);
+      rectBottom.setAttribute('fill', asrColor);
+      barsGroup.appendChild(rectBottom);
+    }
+
+    function getAmplitude(level) {
+      if (level < 0.1) return minAmplitude;
+      else if (level < 0.7) return minAmplitude + (level - 0.1) / 0.7 * (maxAmplitude - minAmplitude);
+      else return maxAmplitude;
+    }
+
+    function animateWaveform() {
+      if (isASRActive) {
+        // Update height factors
+        for (let i = 0; i < numBins; i++) {
+          if (Math.random() < p) {
+            targetFactors[i] = Math.random() * (maxFactor - minFactor) + minFactor;
+          }
+          currentFactors[i] += smoothing * (targetFactors[i] - currentFactors[i]);
+        }
+        const amplitude = getAmplitude(latestLevel);
+        const scale = amplitude / maxAmplitude;
+        const bars = barsGroup.children;
+        for (let i = 0; i < numBins; i++) {
+          const height = barMaxHeight * currentFactors[i] * scale / 2; // Half for top and bottom
+          const topRect = bars[2 * i];
+          const bottomRect = bars[2 * i + 1];
+          topRect.setAttribute('height', height);
+          topRect.setAttribute('y', 50 - height);
+          bottomRect.setAttribute('height', height);
+          bottomRect.setAttribute('y', 50);
+        }
+      } else {
+        const bars = barsGroup.children;
+        for (let i = 0; i < numBins; i++) {
+          const topRect = bars[2 * i];
+          const bottomRect = bars[2 * i + 1];
+          topRect.setAttribute('height', 0);
+          topRect.setAttribute('y', 50);
+          bottomRect.setAttribute('height', 0);
+          bottomRect.setAttribute('y', 50);
+        }
+      }
+      requestAnimationFrame(animateWaveform);
+    }
+    animateWaveform();
+
+    ws.onopen = () => {
+      console.log('WebSocket connection established');
+    };
+
+    ws.onmessage = (event) => {
+      const message = event.data;
+      console.log('Received message:', message);
+
+      if (message === 'lock') {
+        isRecording = true;
+        button.setAttribute('aria-label', 'Stop recording');
+        setTimeout(() => {
+          button.classList.add('hollowing');
+        }, 650);
+
+      } else if (message === 'unlock') {
+        isRecording = false;
+        button.setAttribute('aria-label', 'Turn off');
+        if (manualStop == false) {
+          ws.send('trigger');
+        }
+
+      } else if (message.startsWith('asr ')) {
+        const level = parseFloat(message.split(' ')[1]);
+        if (!isNaN(level)) {
+          latestLevel = level;
+        }
+
+      } else if (message === 'asr-start') {
+        isASRActive = true;
+        document.querySelector('.status.listening').style.opacity = '1';
+        document.querySelector('.waveform').style.opacity = '1';
+        document.querySelector('.tts-circle').style.opacity = '0';
+
+      } else if (message.startsWith('asr-done')) {
+        isASRActive = false;
+        document.querySelector('.status.listening').style.opacity = '0';
+
+      } else if (message === 'tts-start') {
+        isTTSActive = true;
+        document.querySelector('.status.speaking').style.opacity = '1';
+        document.querySelector('.waveform').style.opacity = '0';
+        document.querySelector('.tts-circle').style.opacity = '1';
+
+      } else if (message === 'tts-done') {
+        isTTSActive = false;
+        document.querySelector('.status.speaking').style.opacity = '0';
+        document.querySelector('.tts-circle').style.opacity = '0';
+
+      } else if (message === 'success') {
+        console.log('Command succeeded');
+
+      } else if (message.startsWith('fail')) {
+        console.log('Command failed:', message);
+
+      } else {
+        console.log('Other message:', message);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    button.addEventListener('click', () => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket is not open');
+        return;
+      }
+      if (!button.classList.contains('expanded')) { // button hasn't been expanded yet
+        button.classList.add('expanded');
+        button.classList.add('hollowing');
+        button.classList.add('recording');
+        button.setAttribute('aria-label', 'Stop recording');
+        document.querySelector('.waveform').style.opacity = '1';
+        document.querySelector('.tts-circle').style.opacity = '0';
+        manualStop = false;
+        ws.send('trigger');
+      } else { // button is already expanded
+        manualStop = true;
+        if (isASRActive) {
+          ws.send('stop');
+        }
+        button.classList.remove('expanded');
+        button.classList.remove('hollowing');
+        button.classList.remove('recording');
+        button.setAttribute('aria-label', 'Start recording');
+        document.querySelector('.status.listening').style.opacity = '0';
+        document.querySelector('.status.speaking').style.opacity = '0';
+        document.querySelector('.waveform').style.opacity = '0';
+        document.querySelector('.tts-circle').style.opacity = '0';
+      }
+    });
+
+    const settingsButton = document.getElementById('settings-button');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeButton = document.querySelector('.close-button');
+
+    settingsButton.addEventListener('click', () => {
+      settingsModal.style.visibility = 'visible';
+      settingsModal.style.opacity = '1';
+    });
+
+    function hideModal() {
+      settingsModal.style.opacity = '0';
+      settingsModal.addEventListener('transitionend', function handler() {
+        if (settingsModal.style.opacity === '0') {
+          settingsModal.style.visibility = 'hidden';
+        }
+        settingsModal.removeEventListener('transitionend', handler);
+      }, { once: true });
+    }
+
+    closeButton.addEventListener('click', hideModal);
+
+    settingsModal.addEventListener('click', (event) => {
+      if (event.target === settingsModal) {
+        hideModal();
+      }
+    });
+  </script>
+</body>
+</html>
