@@ -390,6 +390,7 @@ async function changeASR(method: string) {
 		asr.on("result", result => {
 			server.clients.forEach(socket => socket.send("asr-done " + result));
 			if (!result.trim()) {
+				server.clients.forEach(socket => socket.send("tts-done"));
 				wake?.unlock();
 				return;
 			}
