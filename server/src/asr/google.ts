@@ -7,6 +7,7 @@ export class GoogleASR extends ASR {
 	private threshold: number;
 	private mic?: any;
 	private transcripts: string[] = [];
+	private running = false;
 
 	constructor(threshold: number) {
 		super();
@@ -17,6 +18,8 @@ export class GoogleASR extends ASR {
 	}
 
 	async start() {
+		if (this.running) return;
+		this.running = true;
 		const NodeMic = (await import("node-mic")).default;
 		this.mic = new NodeMic({
 			rate: 16000,
@@ -66,6 +69,7 @@ export class GoogleASR extends ASR {
 	stop() {
 		this.mic?.stop();
 		this.emit("result", this.transcripts.join(". "));
+		this.running = false;
 	}
 
 	interrupt() {

@@ -3,6 +3,7 @@ import { ASR } from "../asr";
 
 export class LocalASR extends ASR {
 	private ready: boolean;
+	private running = false;
 	private shell?: PythonShell;
 	private mic?: any;
 
@@ -41,6 +42,8 @@ export class LocalASR extends ASR {
 
 	async start() {
 		if (!this.ready) throw new Error("LocalASR is not ready yet");
+		if (this.running) return;
+		this.running = true;
 		this.shell?.send("start");
 		this.emit("start");
 
@@ -63,6 +66,7 @@ export class LocalASR extends ASR {
 
 	stop() {
 		this.mic?.stop();
+		this.running = false;
 	}
 
 	interrupt() {
