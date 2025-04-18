@@ -1,0 +1,804 @@
+<!-- set PATH=C:\Users\User\csci3280-smart-voice-assistant\server\python\.venv\Scripts;%PATH% -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listening Button Page</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      background-color: #141526;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    .recording-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      position: relative;
+    }
+
+    .circle-button {
+      position: relative;
+      width: 125px;
+      height: 125px;
+      border-radius: 50%;
+      border: 2px solid #22b0e5;
+      background-color: transparent;
+      box-sizing: border-box;
+      transition: width 0.3s ease, height 0.3s ease, border-width 0.3s ease, background-color 0.3s ease;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #22b0e5;
+    }
+
+    .circle-button span {
+      transition: opacity 0.3s ease;
+    }
+
+    .circle-button::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 0;
+      height: 0;
+      background-color: #141526;
+      border-radius: 50%;
+      transition: width 0.3s ease, height 0.3s ease;
+      z-index: 1;
+    }
+
+    .circle-button.expanded {
+      width: 400px;
+      height: 400px;
+    }
+
+    .circle-button.recording {
+      border-width: 0;
+      background-color: #22b0e5;
+    }
+
+    .circle-button.recording span {
+      opacity: 0;
+    }
+
+    .circle-button.hollowing::before {
+      width: 350px;
+      height: 350px;
+    }
+
+    .waveform {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 2;
+    }
+
+    .tts-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 2;
+    }
+
+    .status {
+      /* position: absolute; */
+      bottom: 20px;
+      left: 50%;
+      /* transform: translateX(-50%); */
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      font-family: Arial, sans-serif;
+      font-size: 24px;
+      padding-top: 30px;
+      color: #596894;
+    }
+
+    #settings-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+      z-index: 1000;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+
+    #settings-button:hover {
+      background-color: #444;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease;
+      z-index: 999;
+    }
+
+    .modal-content {
+      background-color: #1e2133;
+      padding: 20px;
+      border-radius: 5px;
+      max-height: 80vh;
+      overflow-y: auto;
+      width: 80%;
+      max-width: 600px;
+      position: relative;
+      color: #ffffff;
+      font-size: 16px;
+    }
+
+    .close-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      font-size: 24px;
+      color: #ffffff;
+      background: #333;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.3s;
+    }
+
+    .close-button:hover {
+      background: #444;
+    }
+
+    .modal-content h2 {
+      margin-top: 0;
+      color: #22b0e5;
+      font-weight: 500;
+    }
+
+    .modal-content p {
+      margin: 10px 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .circle-button,
+      .circle-button span,
+      .circle-button::before,
+      .waveform,
+      .tts-circle,
+      .status,
+      .modal {
+        transition: none;
+      }
+      #transcript-button,
+      #transcript-area {
+        transition: none;
+      }
+    }
+    
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #555;
+    }
+
+    .tab-button {
+      padding: 12px 24px;
+      cursor: pointer;
+      background: #333;
+      color: #ffffff;
+      border: 1px solid #555;
+      border-bottom: none;
+      margin-right: 5px;
+      border-radius: 5px 5px 0 0;
+      transition: background-color 0.3s;
+    }
+
+    .tab-button:hover {
+      background-color: #444;
+    }
+
+    .tab-button.active {
+      background: #1e2133;
+      border-bottom: 2px solid #22b0e5;
+    }
+
+    .tab-content {
+      display: none;
+      background: #2a2d3e;
+      border-radius: 5px;
+      padding: 20px;
+      border: 1px solid #555;
+      border-top: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .tab-content h2 {
+      color: #22b0e5;
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 15px;
+    }
+
+    input, select {
+      margin-left: 10px;
+      background-color: #333;
+      color: #ffffff;
+      border: 1px solid #555;
+      padding: 5px;
+      border-radius: 3px;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    input:focus, select:focus {
+      border-color: #22b0e5;
+      outline: none;
+    }
+
+    select {
+      appearance: none;
+      background-image: url('data:image/svg+xml;utf8,<svg fill="#ffffff" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+
+    #ollama-fields, #whisper-fields {
+      margin-left: 20px;
+    }
+
+    #transcript-toggle {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: #1e2133;
+      color: #ffffff;
+      z-index: 1000;
+    }
+
+    #transcript-button {
+      width: 100%;
+      background: none;
+      border: none;
+      color: #22b0e5;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 10px 0;
+      text-align: center;
+      transition: color 0.3s ease;
+    }
+
+    #transcript-button:hover {
+      color: #3498db;
+    }
+
+    #transcript-area {
+      position: fixed;
+      bottom: 40px; /* Height of the toggle button */
+      left: 0;
+      width: 100%;
+      max-height: 0;
+      overflow: hidden;
+      background-color: #1e2133;
+      color: #ffffff;
+      transition: max-height 0.3s ease;
+      z-index: 999;
+    }
+
+    #transcript-area.show {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .transcript-entry {
+      margin-bottom: 5px;
+    }
+
+    .speaker {
+      font-weight: bold;
+    }
+
+    .speaker.user {
+      color: #ffffff;
+    }
+
+    .speaker.summatia {
+      color: #22b0e5;
+    }
+
+    .text {
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <button id="settings-button">Settings</button>
+  <div id="settings-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-button">×</span>
+      <h2>Settings</h2>
+      <div class="tabs">
+        <button class="tab-button active" data-tab="general-content">General</button>
+        <button class="tab-button" data-tab="tts-content">TTS</button>
+        <button class="tab-button" data-tab="llm-content">LLM</button>
+        <button class="tab-button" data-tab="asr-content">ASR</button>
+      </div>
+      <div id="general-content" class="tab-content active">
+        <h2>General Settings</h2>
+        <label>Wake/Trigger Method:
+          <select id="wake-method">
+            <option value="openwakeword">OpenWakeWord</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
+        <label>Wake Word Path:
+          <input type="text" id="wake-word-path" placeholder="Path to .onnx or .tflite file">
+        </label>
+        <p>Note: The wake word path should point to a .onnx or .tflite file.</p>
+      </div>
+      <div id="tts-content" class="tab-content">
+        <h2>Text-to-Speech Settings</h2>
+        <label>TTS Method:
+          <select id="tts-method">
+            <option value="coqui">Coqui</option>
+            <option value="google">Google</option>
+          </select>
+        </label>
+      </div>
+      <div id="llm-content" class="tab-content">
+        <h2>Large Language Model Settings</h2>
+        <label>Memory Length:
+          <input type="number" id="llm-mem-len" min="0">
+        </label>
+        <label>Memory Duration (seconds):
+          <input type="number" id="llm-mem-dur" min="0">
+        </label>
+        <label>LLM Method:
+          <select id="llm-method">
+            <option value="deepseek">Deepseek</option>
+            <option value="ollama">Ollama</option>
+          </select>
+        </label>
+        <div id="ollama-fields" style="display: none;">
+          <label>Ollama Model:
+            <input type="text" id="ollama-model">
+          </label>
+          <label>Ollama Host:
+            <input type="text" id="ollama-host">
+          </label>
+        </div>
+      </div>
+      <div id="asr-content" class="tab-content">
+        <h2>Automatic Speech Recognition Settings</h2>
+        <label>ASR Method:
+          <select id="asr-method">
+            <option value="whisper">Whisper</option>
+            <option value="google">Google</option>
+          </select>
+        </label>
+        <div id="whisper-fields" style="display: block;">
+          <label>ASR Model:
+            <select id="asr-model">
+              <option value="tiny">Tiny</option>
+              <option value="tiny.en">Tiny (EN)</option>
+              <option value="base">Base</option>
+              <option value="base.en">Base (EN)</option>
+              <option value="small">Small</option>
+              <option value="small.en">Small (EN)</option>
+              <option value="medium">Medium</option>
+              <option value="medium.en">Medium (EN)</option>
+              <option value="large">Large</option>
+              <option value="turbo">Turbo</option>
+            </select>
+          </label>
+          <label>Use Faster Whisper:
+            <input type="checkbox" id="asr-faster">
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="recording-container">
+    <button class="circle-button" aria-label="Start recording">
+      <span>Start</span>
+      <svg class="waveform" width="351" height="100" viewBox="0 0 351 100">
+        <g id="bars"></g>
+      </svg>
+      <svg class="tts-circle" width="150" height="150" viewBox="0 0 150 150">
+        <circle cx="75" cy="75" r="75" fill="#ff6347" />
+      </svg>
+    </button>
+    <div class="status listening">Listening...</div>
+    <div class="status speaking">Speaking...</div>
+    <div id="transcript-toggle">
+      <button id="transcript-button">▼</button>
+    </div>
+    <div id="transcript-area" class="transcript-area hidden">
+      <div id="transcript-log"></div>
+    </div>
+  </div>
+  <script>
+    const button = document.querySelector('.circle-button');
+    const ws = new WebSocket('ws://localhost:3280');
+    let isRecording = false;
+    let isASRActive = false;
+    let isTTSActive = false;
+    let manualStop = false;
+
+    let latestLevel = 0;
+    let phase = 0;
+    
+    const phaseSpeed = 0.1;
+    const asrColor = '#22b0e5';
+    const ttsColor = '#ff6347';
+    const minAmplitude = 2;
+    const maxAmplitude = 20;
+
+    const numBins = 20;
+    const barMaxHeight = 100;
+    const minFactor = 0.2;
+    const maxFactor = 1.0;
+    const p = 0.01;
+    const smoothing = 0.05;
+
+    let currentFactors = new Array(numBins).fill(0).map(() => Math.random() * (maxFactor - minFactor) + minFactor);
+    let targetFactors = [...currentFactors];
+
+    const barsGroup = document.getElementById('bars');
+    const binWidth = 15;
+    const spacing = 2;
+    const totalWidth = numBins * binWidth + (numBins - 1) * spacing;
+    const startX = (351 - totalWidth) / 2;
+
+    for (let i = 0; i < numBins; i++) {
+      const rectTop = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rectTop.setAttribute('x', startX + i * (binWidth + spacing));
+      rectTop.setAttribute('width', binWidth);
+      rectTop.setAttribute('fill', asrColor);
+      barsGroup.appendChild(rectTop);
+
+      const rectBottom = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rectBottom.setAttribute('x', startX + i * (binWidth + spacing));
+      rectBottom.setAttribute('width', binWidth);
+      rectBottom.setAttribute('fill', asrColor);
+      barsGroup.appendChild(rectBottom);
+    }
+
+    function getAmplitude(level) {
+      if (level < 0.1) return minAmplitude;
+      else if (level < 0.7) return minAmplitude + (level - 0.1) / 0.7 * (maxAmplitude - minAmplitude);
+      else return maxAmplitude;
+    }
+
+    function animateWaveform() {
+      if (isASRActive) {
+        // Update height factors
+        for (let i = 0; i < numBins; i++) {
+          if (Math.random() < p) {
+            targetFactors[i] = Math.random() * (maxFactor - minFactor) + minFactor;
+          }
+          currentFactors[i] += smoothing * (targetFactors[i] - currentFactors[i]);
+        }
+        const amplitude = getAmplitude(latestLevel);
+        const scale = amplitude / maxAmplitude;
+        const bars = barsGroup.children;
+        for (let i = 0; i < numBins; i++) {
+          const height = barMaxHeight * currentFactors[i] * scale / 2; // Half for top and bottom
+          const topRect = bars[2 * i];
+          const bottomRect = bars[2 * i + 1];
+          topRect.setAttribute('height', height);
+          topRect.setAttribute('y', 50 - height);
+          bottomRect.setAttribute('height', height);
+          bottomRect.setAttribute('y', 50);
+        }
+      } else {
+        const bars = barsGroup.children;
+        for (let i = 0; i < numBins; i++) {
+          const topRect = bars[2 * i];
+          const bottomRect = bars[2 * i + 1];
+          topRect.setAttribute('height', 0);
+          topRect.setAttribute('y', 50);
+          bottomRect.setAttribute('height', 0);
+          bottomRect.setAttribute('y', 50);
+        }
+      }
+      requestAnimationFrame(animateWaveform);
+    }
+    animateWaveform();
+
+    ws.onopen = () => {
+      console.log('WebSocket connection established');
+    };
+
+    ws.onmessage = (event) => {
+      const message = event.data;
+      console.log('Received message:', message);
+
+      if (message === 'lock') {
+        isRecording = true;
+        button.setAttribute('aria-label', 'Stop recording');
+        setTimeout(() => {
+          button.classList.add('hollowing');
+        }, 650);
+
+      } else if (message === 'unlock') {
+        isRecording = false;
+        button.setAttribute('aria-label', 'Turn off');
+        if (manualStop == false) {
+          ws.send('trigger');
+        }
+
+      } else if (message.startsWith('asr ')) {
+        const level = parseFloat(message.split(' ')[1]);
+        if (!isNaN(level)) {
+          latestLevel = level;
+        }
+
+      } else if (message === 'asr-start') {
+        isASRActive = true;
+        if (!button.classList.contains('expanded')) { // button hasn't been expanded yet
+          button.classList.add('expanded');
+          button.classList.add('hollowing');
+          button.classList.add('recording');
+          button.setAttribute('aria-label', 'Stop recording');
+          document.querySelector('.waveform').style.opacity = '1';
+          document.querySelector('.tts-circle').style.opacity = '0';
+          manualStop = true;
+          ws.send('trigger');
+        }
+        document.querySelector('.status.listening').innerHTML = 'Listening...';
+        document.querySelector('.status.listening').style.opacity = '1';
+        
+        document.querySelector('.waveform').style.opacity = '1';
+        document.querySelector('.tts-circle').style.opacity = '0';
+
+      } else if (message.startsWith('asr-done')) {
+        isASRActive = false;
+        document.querySelector('.status.listening').style.opacity = '0';
+
+        const transcript = message.split(' ').slice(1).join(' ');
+        addTranscript('User', transcript);
+
+      } else if (message === 'tts-start') {
+        isTTSActive = true;
+        // document.querySelector('.status.speaking').style.opacity = '1';
+        document.querySelector('.status.listening').innerHTML = 'Speaking...';
+        document.querySelector('.status.listening').style.opacity  = '1';
+        document.querySelector('.waveform').style.opacity = '0';
+        document.querySelector('.tts-circle').style.opacity = '1';
+
+      } else if (message === 'tts-done') {
+        isTTSActive = false;
+        document.querySelector('.status.listening').style.opacity  = '0';
+        // document.querySelector('.status.speaking').style.opacity = '0';
+        document.querySelector('.tts-circle').style.opacity = '0';
+
+      } else if (message.startsWith('tts-line ')) {
+        const line = message.split(' ').slice(1).join(' ');
+        addTranscript('Summatia', line);
+      } else if (message === 'success') {
+        console.log('Command succeeded');
+
+      } else if (message.startsWith('fail')) {
+        console.log('Command failed:', message);
+
+      } else {
+        console.log('Other message:', message);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    button.addEventListener('click', () => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket is not open');
+        return;
+      }
+      if (!button.classList.contains('expanded')) { // button hasn't been expanded yet
+        button.classList.add('expanded');
+        button.classList.add('hollowing');
+        button.classList.add('recording');
+        button.setAttribute('aria-label', 'Stop recording');
+        document.querySelector('.waveform').style.opacity = '1';
+        document.querySelector('.tts-circle').style.opacity = '0';
+        manualStop = false;
+        ws.send('trigger');
+      } else { // button is already expanded
+        manualStop = true;
+        if (isASRActive) {
+          ws.send('stop');
+        }
+        button.classList.remove('expanded');
+        button.classList.remove('hollowing');
+        button.classList.remove('recording');
+        button.setAttribute('aria-label', 'Start recording');
+        document.querySelector('.status.listening').style.opacity = '0';
+        document.querySelector('.status.speaking').style.opacity = '0';
+        document.querySelector('.waveform').style.opacity = '0';
+        document.querySelector('.tts-circle').style.opacity = '0';
+      }
+    });
+
+    const settingsButton = document.getElementById('settings-button');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeButton = document.querySelector('.close-button');
+
+    settingsButton.addEventListener('click', () => {
+      settingsModal.style.visibility = 'visible';
+      settingsModal.style.opacity = '1';
+    });
+
+    function hideModal() {
+      settingsModal.style.opacity = '0';
+      settingsModal.addEventListener('transitionend', function handler() {
+        if (settingsModal.style.opacity === '0') {
+          settingsModal.style.visibility = 'hidden';
+        }
+        settingsModal.removeEventListener('transitionend', handler);
+      }, { once: true });
+    }
+
+    closeButton.addEventListener('click', hideModal);
+
+    settingsModal.addEventListener('click', (event) => {
+      if (event.target === settingsModal) {
+        hideModal();
+      }
+    });
+
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+          document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+          const tabId = button.getAttribute('data-tab');
+          document.getElementById(tabId).classList.add('active');
+          button.classList.add('active');
+        });
+      });
+
+      const llmMethodSelect = document.getElementById('llm-method');
+      const ollamaFields = document.getElementById('ollama-fields');
+      ollamaFields.style.display = llmMethodSelect.value === 'ollama' ? 'block' : 'none';
+      llmMethodSelect.addEventListener('change', function() {
+        ollamaFields.style.display = this.value === 'ollama' ? 'block' : 'none';
+        console.log("ws sent: set-llm " + this.value);
+        ws.send('set-llm ' + this.value);
+      });
+
+      const asrMethodSelect = document.getElementById('asr-method');
+      const whisperFields = document.getElementById('whisper-fields');
+      whisperFields.style.display = asrMethodSelect.value === 'whisper' ? 'block' : 'none';
+      
+      asrMethodSelect.addEventListener('change', function() {
+        whisperFields.style.display = this.value === 'whisper' ? 'block' : 'none';
+        console.log("ws sent: set-asr " + this.value);
+        ws.send('set-asr ' + this.value);
+      });
+
+      document.getElementById('wake-method').addEventListener('change', function() {
+        console.log("ws sent: set-wake " + this.value);
+        ws.send('set-wake ' + this.value);
+      });
+
+      document.getElementById('wake-word-path').addEventListener('blur', function() {
+        console.log("ws sent: set-wake-word " + this.value);
+        ws.send('set-wake-word ' + this.value);
+      });
+
+      document.getElementById('tts-method').addEventListener('change', function() {
+        console.log("ws sent: set-tts " + this.value);
+        ws.send('set-tts ' + this.value);
+      });
+
+      document.getElementById('llm-mem-len').addEventListener('change', function() {
+        console.log("ws sent: set-llm-mem-len " + this.value);
+        ws.send('set-llm-mem-len ' + this.value);
+      });
+
+      document.getElementById('llm-mem-dur').addEventListener('change', function() {
+        console.log("ws sent: set-llm-mem-dur " + this.value);
+        ws.send('set-llm-mem-dur ' + this.value);
+      });
+
+      document.getElementById('ollama-model').addEventListener('blur', function() {
+        if (llmMethodSelect.value === 'ollama') {
+          console.log("ws sent: set-llm-ollama-model " + this.value);
+          ws.send('set-llm-ollama-model ' + this.value);
+        }
+      });
+
+      document.getElementById('ollama-host').addEventListener('blur', function() {
+        if (llmMethodSelect.value === 'ollama') {
+          console.log("ws sent: set-llm-ollama-host " + this.value);
+          ws.send('set-llm-ollama-host ' + this.value);
+        }
+      });
+
+      document.getElementById('asr-model').addEventListener('change', function() {
+        if (asrMethodSelect.value === 'whisper') {
+          console.log("ws sent: set-asr-model " + this.value);
+          ws.send('set-asr-model ' + this.value);
+        }
+      });
+
+      document.getElementById('asr-faster').addEventListener('change', function() {
+        if (asrMethodSelect.value === 'whisper') {
+          console.log("ws sent: set-asr-faster " + (this.checked ? 'true' : 'false'));
+          ws.send('set-asr-faster ' + (this.checked ? 'true' : 'false'));
+        }
+      });
+
+      const transcriptButton = document.getElementById('transcript-button');
+      const transcriptArea = document.getElementById('transcript-area');
+
+      transcriptButton.addEventListener('click', () => {
+        const isExpanded = transcriptArea.classList.contains('show');
+        if (isExpanded) {
+          transcriptArea.classList.remove('show');
+          transcriptButton.textContent = '▼';
+        } else {
+          transcriptArea.classList.add('show');
+          transcriptButton.textContent = '▲';
+        }
+      });
+
+      function addTranscript(speaker, text) {
+        const log = document.getElementById('transcript-log');
+        const entry = document.createElement('div');
+        entry.className = 'transcript-entry';
+        const speakerSpan = document.createElement('span');
+        speakerSpan.className = `speaker ${speaker.toLowerCase()}`;
+        speakerSpan.textContent = `${speaker}: `;
+        const textSpan = document.createElement('span');
+        textSpan.className = 'text';
+        textSpan.textContent = text;
+        entry.appendChild(speakerSpan);
+        entry.appendChild(textSpan);
+        log.appendChild(entry);
+        transcriptArea.scrollTop = transcriptArea.scrollHeight;
+      }
+  </script>
+</body>
+</html>

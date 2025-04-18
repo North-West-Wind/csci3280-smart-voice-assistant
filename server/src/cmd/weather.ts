@@ -21,7 +21,7 @@ class WeatherCommand extends Command {
 		content = content.split("\n").map(line => line.trim()).join("\n");
 		content = content.split("\n").slice(0, 3).join(" ") + "\n" + content.split("\n").slice(3).join("\n");
 		content = content.replace(/<\/?\w+.*>/gm, "");
-		content = content.replace("a.m.", "am").replace("p.m.", "pm");
+		content = content.replace("a.m.", "AM").replace("p.m.", "PM");
 		return content;
 	}
 }

@@ -389,6 +389,11 @@ async function changeASR(method: string) {
 		// When the transcription result is ready, pass it to LLM
 		asr.on("result", result => {
 			server.clients.forEach(socket => socket.send("asr-done " + result));
+			if (!result.trim()) {
+				server.clients.forEach(socket => socket.send("tts-done"));
+				wake?.unlock();
+				return;
+			}
 			llmFinished = false;
 			llm?.process(result);
 		});
