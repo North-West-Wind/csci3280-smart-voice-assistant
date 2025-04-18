@@ -47,3 +47,9 @@ To add more options while running the program, remember to put them after the fi
 ```sh
 npm start -- --llm ollama
 ```
+
+## Client Setup
+Simply open the file `client/start.html` in a browser.
+
+The websocket only tries to connect during initial load.
+Reload the webpage after starting the server.
